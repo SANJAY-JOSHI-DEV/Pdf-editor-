@@ -8,7 +8,10 @@ Everything runs in your browser. No server, no upload, no login.
 - **Home screen** with one-tap jobs: Edit PDF, Remove watermark, Add watermark, PDF → Text/Word, Text → PDF, Photos → PDF, Merge, Compress, Sign.
 - **Remove watermark automatically:** scans every page, shows pictures of what repeats, is tilted or faded (watermark images, logos, diagonal text, Acrobat watermarks), and deletes the ticked items for real. Also: remove by typed text, by drawing a box, or paint over (scanned pages).
 - **Add your own watermark:** text or logo, tilt, position, tiled pattern, chosen pages; movable/rotatable afterwards; copy to or delete from all pages.
+- **Tap anything in the PDF** (Edit tab → Select): tap a line of text to **Edit / Delete / Copy** it; tap a picture or diagram to **Save PNG (transparent) / JPG / Delete** it; tap a line or small shape to **Delete** it. Deletion removes it from the file for real (Undo available).
+- **Extract pictures:** Convert → Extract pictures saves every diagram/picture of the PDF as PNGs in a ZIP.
 - **Edit text:** tap a line, type the new text — the original is deleted from the file.
+- **Easy layout:** 5 big bottom tabs (Edit · Watermark · Convert · Pages · More), floating page/zoom buttons on phones, one-tap **Light/Dark** switch (follows your phone by default).
 - **Convert:** PDF → Text (copy all, keeps symbols like α ≥ μm² → H₂O), PDF → Word (.docx), **OCR** for scans and broken Hindi (fixes only the broken lines), PDF → JPG, Text → PDF (Hindi with a Devanagari font), Photos → PDF, Compress, Merge.
 - Drawing, highlight, shapes, eraser, images, signature, forms, find & highlight, page numbers, pages (rotate, delete, reorder, extract, split), undo/redo, metadata removal.
 
