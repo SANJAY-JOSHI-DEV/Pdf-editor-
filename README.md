@@ -6,7 +6,10 @@ Everything runs in your browser. No server, no upload, no login.
 
 ## Features
 - Open PDFs, or turn photos/images (PNG/JPG/WebP) into a PDF.
-- Watermark: auto text removal, region removal, cover/blur fallback, and **add your own stamp** (DRAFT, COPY, …).
+- Watermark: auto text removal, region removal, cover/blur fallback.
+- **Your own watermark**: text or logo, any angle (diagonal), any position, tiled across the page, chosen pages; every watermark stays movable/rotatable, can be copied to all pages or deleted from all pages.
+- **Edit existing text**: tap a line, type new text — the original text is deleted from the file (falls back to a cover patch on scanned pages).
+- **Compress PDF**, reverse page order, rotate any text/image to any angle.
 - Text (incl. Hindi with an uploaded Devanagari font), pen, highlight, shapes, arrows, whiteout, images, signature, form fields.
 - **Find text** across all pages and highlight every match.
 - **Page numbers** (1, Page 1 of N, 1 / N, - 1 -) in any corner.
@@ -51,7 +54,7 @@ The first visit needs internet to download the PDF libraries from cdn.jsdelivr.n
 
 - **Image watermarks:** If the watermark is a separate picture, Region mode can delete it. If it is part of the same picture as the page (scans, flattened exports), it cannot be separated — only covered.
 - **Scanned PDFs:** Pages are photos. Auto watermark removal and Replace text don't work; use Cover or Whiteout + Text.
-- **Cover is not removal:** A cover patch sits on top. The original content is still in the file.
+- **Cover** paints over the area; the original stays underneath. Use Auto/Region for real deletion.
 - **Editing existing text:** PDFs store positioned glyphs, not paragraphs. "Replace" covers a text run and puts new text on top; surrounding text doesn't reflow and the old text may still be found by search/copy.
 - **Auto mode needs real text with Unicode mapping.** Watermarks drawn as vector outlines, or with fonts that have no Unicode map, won't match by text; use Region mode.
 - **Operator granularity:** If the watermark shares a single text instruction with real text, that whole instruction is removed. Check the result; Undo is there.

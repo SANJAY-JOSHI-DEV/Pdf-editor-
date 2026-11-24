@@ -1,6 +1,6 @@
 /* PDF Desk service worker: caches the app shell and the pinned CDN libraries only.
    User PDFs are never fetched over the network, so they are never cached. */
-const CACHE = 'pdfdesk-v2';
+const CACHE = 'pdfdesk-v3';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 const LIBS = [
   'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js',
