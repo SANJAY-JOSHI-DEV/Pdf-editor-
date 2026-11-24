@@ -5,21 +5,17 @@ Everything runs in your browser. No server, no upload, no login.
 **Live app:** https://sanjay-joshi-dev.github.io/Pdf-editor-/ (after GitHub Pages is switched on, see below)
 
 ## Features
-- Open PDFs, or turn photos/images (PNG/JPG/WebP) into a PDF.
-- Watermark: auto text removal, region removal, cover/blur fallback.
-- **Your own watermark**: text or logo, any angle (diagonal), any position, tiled across the page, chosen pages; every watermark stays movable/rotatable, can be copied to all pages or deleted from all pages.
-- **Edit existing text**: tap a line, type new text — the original text is deleted from the file (falls back to a cover patch on scanned pages).
-- **Compress PDF**, reverse page order, rotate any text/image to any angle.
-- Text (incl. Hindi with an uploaded Devanagari font), pen, highlight, shapes, arrows, whiteout, images, signature, form fields.
-- **Find text** across all pages and highlight every match.
-- **Page numbers** (1, Page 1 of N, 1 / N, - 1 -) in any corner.
-- Pages: rotate, delete, duplicate, blank page, drag to reorder, extract, merge, split.
-- Fill existing forms; undo/redo (100 steps); export PNG/JPG; **remove hidden metadata** on download.
+- **Home screen** with one-tap jobs: Edit PDF, Remove watermark, Add watermark, PDF → Text/Word, Text → PDF, Photos → PDF, Merge, Compress, Sign.
+- **Remove watermark automatically:** scans every page, shows pictures of what repeats, is tilted or faded (watermark images, logos, diagonal text, Acrobat watermarks), and deletes the ticked items for real. Also: remove by typed text, by drawing a box, or paint over (scanned pages).
+- **Add your own watermark:** text or logo, tilt, position, tiled pattern, chosen pages; movable/rotatable afterwards; copy to or delete from all pages.
+- **Edit text:** tap a line, type the new text — the original is deleted from the file.
+- **Convert:** PDF → Text (copy all, keeps symbols like α ≥ μm² → H₂O), PDF → Word (.docx), **OCR** for scans and broken Hindi (fixes only the broken lines), PDF → JPG, Text → PDF (Hindi with a Devanagari font), Photos → PDF, Compress, Merge.
+- Drawing, highlight, shapes, eraser, images, signature, forms, find & highlight, page numbers, pages (rotate, delete, reorder, extract, split), undo/redo, metadata removal.
 
 ## Security
 - Files are processed only in the browser; the only network requests go to this site and cdn.jsdelivr.net (libraries).
 - Libraries are version-pinned with Subresource Integrity hashes.
-- Strict Content-Security-Policy: no eval, no inline event handlers, scripts only from this page (hash-pinned) and jsDelivr.
+- Strict Content-Security-Policy: no eval (only WebAssembly for OCR), no inline event handlers, scripts only from this page (hash-pinned) and jsDelivr.
 - pdf.js runs with `isEvalSupported: false` (mitigates malicious-font exploits such as CVE-2024-4367).
 - All file names, form field names, search text and stored settings are escaped/validated before being shown.
 - Tested: XSS via file name, form fields, search, annotations and tampered localStorage; 9 corrupted/fuzzed PDFs (no crash).
