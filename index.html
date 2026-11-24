@@ -7,7 +7,7 @@
 <meta name="description" content="Private, in-browser PDF editor. Files never leave your device.">
 <title>PDF Desk</title>
 <!-- Strict CSP: scripts only from this page (hash-pinned at build time) and the pinned CDN. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-FdgSNcZPIZ/DJ5HFK4Uxh3bTtl1GUDchNh2mpm3WLnI='; worker-src 'self' blob: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-tx6+txNXkoPp5l+MpbBzZ1l4zDYbOdg5xuceToailp8='; worker-src 'self' blob: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b8cff'/%3E%3Cpath d='M20 12h18l10 10v30H20z' fill='%23fff'/%3E%3Cpath d='M38 12v10h10' fill='%23cddaff'/%3E%3Cpath d='M25 44l14-14 4 4-14 14h-4z' fill='%235b8cff'/%3E%3C/svg%3E">
@@ -59,10 +59,15 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .zoomlbl{min-width:48px;text-align:center;font-size:13px;color:var(--muted)}
 
 /* ---------- Tool bar (top on desktop, bottom on phones) ---------- */
-#toolbar{order:2;display:flex;align-items:center;gap:2px;padding:4px 8px;background:var(--bg2);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;flex:none}
-#toolbar::-webkit-scrollbar{display:none}
-.tool{flex-direction:column;height:46px;min-width:52px;gap:2px;padding:2px 6px;font-size:10.5px;color:var(--muted)}
+#toolbar{order:2;display:flex;align-items:center;gap:8px;padding:4px 8px;background:var(--bg2);border-bottom:1px solid var(--line);flex:none;min-width:0}
+#tools{display:flex;align-items:center;gap:2px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+#tools::-webkit-scrollbar{display:none}
+#nav{display:flex;gap:2px;flex:none}
+.tool{flex-direction:column;height:46px;min-width:56px;gap:2px;padding:2px 6px;font-size:10.5px;color:var(--muted);flex:none}
 .tool.active{background:var(--accent);color:#fff}
+.navbtn{flex-direction:column;height:46px;min-width:68px;gap:2px;padding:2px 8px;font-size:10.5px;color:var(--muted);border-radius:10px}
+.navbtn.active{color:var(--accent);background:rgba(91,140,255,.16)}
+.lbl-sm{display:none}
 #optbar{order:3;display:flex;align-items:center;flex-wrap:nowrap;gap:8px;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;min-height:44px;flex:none;scrollbar-width:thin}
 #optbar label{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px;white-space:nowrap}
 #optbar input[type=range]{width:90px}
@@ -87,7 +92,16 @@ textarea{resize:vertical}
 .thumb .tn{text-align:center;font-size:12px;color:var(--muted);margin-top:3px}
 .thumb .chk{position:absolute;top:6px;left:6px;width:22px;height:22px;accent-color:var(--accent)}
 .thumb .handle{position:absolute;top:4px;right:4px;width:30px;height:30px;border-radius:6px;background:var(--panel2);display:flex;align-items:center;justify-content:center;touch-action:none;cursor:grab;color:var(--muted)}
-#viewer{flex:1;overflow:auto;position:relative;touch-action:pan-x pan-y;background:var(--bg);overscroll-behavior:contain}
+#stage{flex:1;position:relative;min-width:0;min-height:0}
+#viewer{position:absolute;inset:0;overflow:auto;touch-action:pan-x pan-y;background:var(--bg);overscroll-behavior:contain}
+.pill{position:absolute;z-index:20;display:flex;gap:2px;padding:3px;background:var(--panel);border:1px solid var(--line);border-radius:999px;box-shadow:var(--shadow)}
+.pill button{min-width:40px;height:38px;border-radius:999px;border:none;background:transparent;font-size:18px;color:var(--text);padding:0 10px;display:inline-flex;align-items:center;justify-content:center}
+.pill button:active{background:var(--panel2)}
+#pagePill{left:10px;bottom:10px} #pagePill button{font-size:14px;font-weight:600}
+#zoomPill{right:10px;bottom:10px}
+#ctx{position:fixed;z-index:70;display:flex;gap:2px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.4);max-width:calc(100vw - 16px);flex-wrap:wrap}
+#ctx .btn{height:38px;padding:0 12px}
+@media (min-width:761px){.pill{display:none!important}}
 #pages{display:flex;flex-direction:column;align-items:center;gap:18px;padding:18px;width:max-content;min-width:100%;transform-origin:0 0}
 .page{position:relative;background:#fff;box-shadow:var(--shadow);flex:none}
 .page canvas{position:absolute;left:0;top:0;width:100%;height:100%}
@@ -165,16 +179,20 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
 
 /* ---------- Phone layout: tools at the bottom, sidebar + panel become drawers ---------- */
 @media (max-width:760px){
-  #appbar .lbl,.hide-sm{display:none}
+  #appbar .lbl,.hide-sm,#appbar .brand{display:none}
+  #appbar .lbl-sm{display:inline;font-weight:600}
   #appbar{padding:0 4px;gap:2px}
   #main{order:2}
   #optbar{order:3;border-top:1px solid var(--line);border-bottom:none}
-  #toolbar{order:4;border-top:1px solid var(--line);border-bottom:none;padding-bottom:calc(4px + env(safe-area-inset-bottom))}
+  #toolbar{order:4;flex-direction:column;align-items:stretch;gap:2px;border-top:1px solid var(--line);border-bottom:none;padding:4px 6px calc(6px + env(safe-area-inset-bottom))}
+  #tools{flex:none}
+  #nav{justify-content:space-between}
+  .navbtn{flex:1;min-width:0;height:52px;font-size:11px}
+  body.panel-open #tools,body.panel-open #optbar{display:none}
   #sidebar{position:absolute;left:0;top:0;bottom:0;z-index:40;width:160px;transform:translateX(-102%);transition:transform .2s;box-shadow:var(--shadow)}
   #sidebar.open{transform:none}
   #panel{position:absolute;left:0;right:0;bottom:0;width:auto;max-height:78%;z-index:45;border-left:none;border-top:1px solid var(--line);border-radius:14px 14px 0 0;box-shadow:0 -6px 24px rgba(0,0,0,.4)}
   #pages{padding:12px 8px;gap:14px}
-  .tool{min-width:50px}
   #toasts{bottom:auto;top:58px}
 }
 @media (min-width:761px){ #sbToggle{display:none} body.sb-closed #sidebar{display:none} }
@@ -219,6 +237,9 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
   <symbol id="i-back" viewBox="0 0 24 24"><rect x="4" y="4" width="11" height="11" rx="1" fill="currentColor"/><path d="M15 9h5v11H9v-5"/></symbol>
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
   <symbol id="i-find" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></symbol>
   <symbol id="i-drop" viewBox="0 0 24 24"><path d="M14 4l6 6-9 9H5v-6z"/><path d="M11 7l6 6"/></symbol>
 </svg>
 
@@ -226,7 +247,7 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
   <button class="btn" id="sbToggle" title="Pages"><svg class="i"><use href="#i-pages"/></svg></button>
   <span class="brand">PDF Desk</span>
   <button class="btn" id="btnOpen" title="Open PDF (Ctrl+O)"><svg class="i"><use href="#i-open"/></svg><span class="lbl">Open</span></button>
-  <button class="btn primary" id="btnSave" title="Download edited PDF (Ctrl+S)" disabled><svg class="i"><use href="#i-save"/></svg><span class="lbl">Download</span></button>
+  <button class="btn primary" id="btnSave" title="Download edited PDF (Ctrl+S)" disabled><svg class="i"><use href="#i-save"/></svg><span class="lbl">Download</span><span class="lbl-sm">Save</span></button>
   <span class="fname" id="fname"></span>
   <button class="btn" id="btnUndo" title="Undo (Ctrl+Z)" disabled><svg class="i"><use href="#i-undo"/></svg></button>
   <button class="btn" id="btnRedo" title="Redo (Ctrl+Y)" disabled><svg class="i"><use href="#i-redo"/></svg></button>
@@ -234,13 +255,14 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
   <button class="btn hide-sm" id="btnZoomOut" title="Zoom out"><svg class="i"><use href="#i-minus"/></svg></button>
   <span class="zoomlbl hide-sm" id="zoomLbl">100%</span>
   <button class="btn hide-sm" id="btnZoomIn" title="Zoom in"><svg class="i"><use href="#i-plus"/></svg></button>
-  <button class="btn" id="btnFit" title="Fit width"><svg class="i"><use href="#i-fit"/></svg></button>
+  <button class="btn hide-sm" id="btnFit" title="Fit width"><svg class="i"><use href="#i-fit"/></svg></button>
   <span class="sep hide-sm"></span>
-  <span class="pagenav"><input id="pageInput" type="text" inputmode="numeric" value="0" aria-label="Go to page"><span>/</span><span id="pageCount">0</span></span>
-  <button class="btn" id="btnMenu" title="More"><svg class="i"><use href="#i-menu"/></svg></button>
+  <span class="pagenav hide-sm"><input id="pageInput" type="text" inputmode="numeric" value="0" aria-label="Go to page"><span>/</span><span id="pageCount">0</span></span>
+  <button class="btn" id="btnTheme" title="Light / Dark"></button>
 </header>
 
-<nav id="toolbar" aria-label="Tools">
+<div id="toolbar">
+<div id="tools" aria-label="Edit tools">
   <button class="btn tool active" data-tool="select"><svg class="i"><use href="#i-select"/></svg>Select</button>
   <button class="btn tool" data-tool="text"><svg class="i"><use href="#i-text"/></svg>Add text</button>
   <button class="btn tool" data-tool="replace"><svg class="i"><use href="#i-replace"/></svg>Edit text</button>
@@ -250,12 +272,15 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
   <button class="btn tool" data-tool="whiteout"><svg class="i"><use href="#i-white"/></svg>Eraser</button>
   <button class="btn tool" data-tool="image"><svg class="i"><use href="#i-image"/></svg>Image</button>
   <button class="btn tool" data-tool="sign"><svg class="i"><use href="#i-sign"/></svg>Sign</button>
-  <span class="sep"></span>
-  <button class="btn tool" data-panel="watermark"><svg class="i"><use href="#i-wm"/></svg>Watermark</button>
-  <button class="btn tool" data-panel="convert"><svg class="i"><use href="#i-export"/></svg>Convert</button>
-  <button class="btn tool" data-panel="pages"><svg class="i"><use href="#i-pages"/></svg>Pages</button>
-  <button class="btn tool" data-panel="more"><svg class="i"><use href="#i-menu"/></svg>More</button>
+</div>
+<nav id="nav" aria-label="Sections">
+  <button class="btn navbtn active" data-panel="edit"><svg class="i"><use href="#i-edit"/></svg>Edit</button>
+  <button class="btn navbtn" data-panel="watermark"><svg class="i"><use href="#i-wm"/></svg>Watermark</button>
+  <button class="btn navbtn" data-panel="convert"><svg class="i"><use href="#i-export"/></svg>Convert</button>
+  <button class="btn navbtn" data-panel="pages"><svg class="i"><use href="#i-pages"/></svg>Pages</button>
+  <button class="btn navbtn" data-panel="more"><svg class="i"><use href="#i-menu"/></svg>More</button>
 </nav>
+</div>
 
 <div id="optbar"></div>
 
@@ -272,6 +297,7 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
     </div>
     <div id="thumbs"></div>
   </aside>
+  <div id="stage">
   <section id="viewer">
     <div id="pages"></div>
     <div id="empty">
@@ -293,12 +319,16 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
       </div>
     </div>
   </section>
+  <div class="pill hidden" id="pagePill"><button id="pillPage" title="Go to page">1 / 1</button></div>
+  <div class="pill hidden" id="zoomPill"><button id="pzOut" title="Zoom out">−</button><button id="pzFit" title="Fit width"><svg class="i"><use href="#i-fit"/></svg></button><button id="pzIn" title="Zoom in">+</button></div>
+  </div>
   <aside id="panel">
     <div class="phead"><h2 id="panelTitle"></h2><button class="btn sm" id="panelClose" title="Close"><svg class="i"><use href="#i-close"/></svg></button></div>
     <div class="pbody" id="panelBody"></div>
   </aside>
 </div>
 
+<div id="ctx" class="hidden" role="menu"></div>
 <div id="toasts" role="status" aria-live="polite"></div>
 <div id="busy" class="hidden"><div class="box"><div class="spin"></div><div id="busyText">Working…</div></div></div>
 <input type="file" id="filePdf" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp" multiple hidden>
@@ -551,7 +581,7 @@ function loadSettings() {
     font: typeof raw.font === 'string' ? raw.font : d.font,
     color: safeColor(raw.color, d.color), textColor: safeColor(raw.textColor, d.textColor),
     width: safeNum(raw.width, d.width, 0.5, 30), fontSize: safeNum(raw.fontSize, d.fontSize, 4, 200),
-    theme: raw.theme === 'light' ? 'light' : 'dark',
+    theme: raw.theme === 'light' || raw.theme === 'dark' ? raw.theme : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'),
   };
   applyTheme(); initOpts();
 }
@@ -573,7 +603,14 @@ function sanitizeObj(o) {
   return out;
 }
 function saveSettings() { LS.set('settings', state.settings); }
-function applyTheme() { document.documentElement.dataset.theme = state.settings.theme; }
+function applyTheme() {
+  const t = state.settings.theme;
+  document.documentElement.dataset.theme = t;
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'light' ? '#f7f8fa' : '#14161b';
+  const b = document.getElementById('btnTheme');
+  if (b) { b.innerHTML = `<svg class="i"><use href="#i-${t === 'light' ? 'moon' : 'sun'}"/></svg>`; b.title = t === 'light' ? 'Switch to dark' : 'Switch to light'; }
+}
+function toggleTheme() { state.settings.theme = state.settings.theme === 'light' ? 'dark' : 'light'; applyTheme(); saveSettings(); if (state.panel === 'settings') renderPanel(); }
 
 /* IndexedDB keeps uploaded fonts so the user doesn't re-upload them every visit. */
 function idb() {
@@ -994,10 +1031,11 @@ function goToPage(i) {
   setCurrent(i);
 }
 function setCurrent(i) {
-  if (state.current === i && $('#pageInput').value == i + 1) return;
+  if (state.current === i && $('#pageInput').value == i + 1 && $('#pillPage').textContent === `${i + 1} / ${state.pages.length}`) return;
   const prev = state.pages[state.current];
   state.current = i;
   $('#pageInput').value = state.pages.length ? i + 1 : 0;
+  if ($('#pillPage')) $('#pillPage').textContent = state.pages.length ? `${i + 1} / ${state.pages.length}` : '';
   if (prev && thumbEls.get(prev.id)) thumbEls.get(prev.id).el.classList.remove('current');
   const cur = state.pages[i];
   const te = cur && thumbEls.get(cur.id);
@@ -1303,7 +1341,7 @@ function pickFontFile() {
 const DRAW_TOOLS = new Set(['pen', 'highlight', 'line', 'arrow', 'rect', 'ellipse', 'whiteout', 'field', 'wmregion', 'cover']);
 const TAP_TOOLS = new Set(['text', 'replace', 'eyedrop']);
 const TOOL_HINTS = {
-  select: 'Tap anything you added to move, resize or delete it.',
+  select: 'Tap any text, picture or line in the PDF to edit, delete or save it.',
   text: 'Tap where you want to write.',
   replace: 'Tap any line of the PDF to change its text.',
   image: 'Choose a PNG/JPG to place on the current page.',
@@ -1375,6 +1413,7 @@ function onPointerDown(e) {
       capture(e, el); e.preventDefault(); return;
     }
     if (state.sel) select(null);
+    drag = { ...base, mode: 'tap' };
     return;
   }
   if (TAP_TOOLS.has(t)) { drag = { ...base, mode: 'tap' }; return; }
@@ -1489,6 +1528,7 @@ async function onPointerUp(e) {
         if (state.tool === 'text') await addTextAt(p, x, y);
         else if (state.tool === 'replace') await replaceTextAt(p, x, y);
         else if (state.tool === 'eyedrop') await eyedropAt(p, x, y);
+        else if (state.tool === 'select') await contentMenuAt(p, x, y, d.sx, d.sy);
         break;
       }
     }
@@ -2061,7 +2101,8 @@ function processContent(env, str, res, baseCtm) {
   const addPt = (x, y) => { const [px, py] = apply(gs.ctm, x, y); pathBox = union(pathBox, { x1: px, y1: py, x2: px, y2: py }); };
   // Smart detection: group the page into "things" (text blocks, pictures, drawings) with a stable key,
   // so the same watermark can be recognised on every page and removed by key.
-  const smart = mode === 'scan' || mode === 'keys';
+  const smart = mode === 'scan' || mode === 'keys' || mode === 'drop';
+  const myId = env.curId || 'page';
   const entries = [];
   const qStack = [];
   let blk = null, pend = null;
@@ -2205,6 +2246,7 @@ function processContent(env, str, res, baseCtm) {
       default:
         if (PAINT_OPS.has(op)) {
           if (smart && !clip && op !== 'n') toQ(pathBox);
+          if (env.opts.paths && !clip && op !== 'n' && pathBox && pathStart >= 0) entries.push({ kind: 'path', s: pathStart, e: i, box: pathBox, alpha: gs.alpha, stroke: op === 'S' || op === 's' });
           if (mode === 'region' && !env.opts.textOnly && pathStart >= 0 && !clip && op !== 'n' && pathBox && fracIn(pathBox, rect) >= 0.9) {
             for (let k = pathStart; k <= i; k++) remove.add(k);
             env.stats.paths++;
@@ -2229,7 +2271,9 @@ function processContent(env, str, res, baseCtm) {
   }
   if (smart) {
     flushPend();
+    for (const e of entries) e.ctx = myId;
     if (mode === 'scan') env.entries.push(...entries);
+    else if (mode === 'drop') { for (const e of entries) if (env.opts.drops.has(e.ctx + ':' + e.s)) { for (let k = e.s; k <= e.e; k++) remove.add(k); env.stats.matches++; } }
     else for (const e of entries) if (env.opts.keys.has(e.key)) { for (let k = e.s; k <= e.e; k++) remove.add(k); env.stats.matches++; }
   }
   const text = shows.map(s => s.text).join(' ');
@@ -2242,7 +2286,9 @@ function processContent(env, str, res, baseCtm) {
 
 function processForm(env, ref, xo, parentRes, ctm) {
   const res = xo.dict.lookup(PN('Resources')) || parentRes;
-  const r = processContent(env, latin1(streamBytes(xo)), res, ctm);
+  const prevId = env.curId; env.curId = String(ref);
+  let r;
+  try { r = processContent(env, latin1(streamBytes(xo)), res, ctm); } finally { env.curId = prevId; }
   if (r.out == null) return;
   const ctx = env.doc.context;
   const ns = ctx.flateStream(fromLatin1(r.out));
@@ -2310,6 +2356,7 @@ function processAnnots(env, page) {
 
 function processPage(env, page) {
   try { const mb = page.getMediaBox(); env.pageArea = Math.abs(mb.width * mb.height) || 1e12; } catch (e) { env.pageArea = 1e12; }
+  env.curId = 'page';
   const contents = page.node.Contents();
   if (contents) {
     const ctx = env.doc.context;
@@ -3054,6 +3101,7 @@ async function detectWatermarks() {
         try { processPage(env, pg); } catch (e) { console.warn('scan', e); continue; }
         const crop = pg.getCropBox(), { R } = pview(pm), seen = new Set();
         for (const e of env.entries) {
+          if (!e.key) continue;
           let c = agg.get(e.key);
           if (!c) agg.set(e.key, c = { key: e.key, kind: e.kind, text: e.text || '', sub: e.sub, pages: new Set(), diag: false, alpha: 1, sample: null, count: 0 });
           c.count++;
@@ -3411,6 +3459,7 @@ function panelConvert(b) {
       <button class="tile" id="cvWord" ${has ? '' : 'disabled'}><b>PDF → Word</b><small>.docx file</small></button>
       <button class="tile" id="cvOcr" ${has ? '' : 'disabled'}><b>Scan / OCR</b><small>photos, scans, broken Hindi</small></button>
       <button class="tile" id="cvImg" ${has ? '' : 'disabled'}><b>PDF → JPG</b><small>one image per page</small></button>
+      <button class="tile" id="cvPics" ${has ? '' : 'disabled'}><b>Extract pictures</b><small>all diagrams (ZIP)</small></button>
       <button class="tile" id="cvT2P"><b>Text → PDF</b><small>type or paste</small></button>
       <button class="tile" id="cvI2P"><b>Photos → PDF</b><small>JPG / PNG</small></button>
       <button class="tile" id="cvCmp" ${has ? '' : 'disabled'}><b>Compress</b><small>smaller file</small></button>
@@ -3441,6 +3490,7 @@ function panelConvert(b) {
   $('#cvOcr', b).onclick = () => $('#ocrRow', b).classList.toggle('hidden');
   $('#ocrGo', b).onclick = async () => { try { showText(await ocrPdf($('#ocrLang', b).value), 'Text recognised with OCR — please proof-read'); } catch (e) { fail('OCR failed', e); } };
   $('#cvImg', b).onclick = () => exportImages('jpg', 2, '');
+  $('#cvPics', b).onclick = extractImages;
   $('#cvT2P', b).onclick = () => textToPdfDialog('');
   $('#cvI2P', b).onclick = () => pickAndOpen('image/png,image/jpeg,image/webp');
   $('#cvCmp', b).onclick = () => compressPdf('medium');
@@ -3477,14 +3527,18 @@ async function textToPdfDialog(initial) {
 
 /* ---- More ---- */
 function panelMore(b) {
-  b.innerHTML = `<div class="grid2">
+  b.innerHTML = `<button class="btn primary big" id="mrSave"><svg class="i"><use href="#i-save"/></svg>Download PDF</button>
+  <div class="grid2">
     <button class="tile" data-open="find"><b>Find text</b><small>search & highlight</small></button>
     <button class="tile" data-open="forms"><b>Fill form</b><small>form fields</small></button>
-    <button class="tile" data-open="export"><b>Save / export</b><small>PDF, images, compress</small></button>
-    <button class="tile" data-open="settings"><b>Settings</b><small>fonts, theme</small></button>
+    <button class="tile" data-open="export"><b>Save options</b><small>images, compress, privacy</small></button>
     <button class="tile" data-tool2="field"><b>Add form field</b><small>fillable box</small></button>
-    <button class="tile" data-tool2="arrow"><b>Arrow / line</b><small>shapes</small></button>
-  </div>`;
+    <button class="tile" data-open="settings"><b>Settings</b><small>fonts, defaults</small></button>
+    <button class="tile" id="mrTheme"><b>${state.settings.theme === 'light' ? 'Dark mode' : 'Light mode'}</b><small>change look</small></button>
+  </div>
+  <div class="note">Tip: in <b>Edit</b>, tap any text, picture or line of the PDF to edit, delete or save it.</div>`;
+  $('#mrSave', b).onclick = downloadPdf;
+  $('#mrTheme', b).onclick = toggleTheme;
   $$('[data-open]', b).forEach(x => x.onclick = () => openPanel(x.dataset.open));
   $$('[data-tool2]', b).forEach(x => x.onclick = () => { setTool(x.dataset.tool2); closePanelOnPhone(); });
 }
@@ -3509,6 +3563,177 @@ function wireHub() {
   });
 }
 
+/* ================= Tap any content in the PDF: edit / delete / save ================= */
+/* Scan one page into elements (pictures, embedded graphics, optionally lines/shapes) with view-space boxes. */
+const scanCache = new Map();
+async function scanPageEntries(pm, paths) {
+  const R = pview(pm).R, key = `${pm.src}|${pm.idx}|${R}|${paths ? 1 : 0}`;
+  if (scanCache.has(key)) return scanCache.get(key);
+  if (scanCache.size > 200) scanCache.clear();
+  const doc = await getLibDoc(state.sources.get(pm.src));
+  const pg = doc.getPages()[pm.idx];
+  const env = { doc, opts: { mode: 'scan', paths: !!paths }, fontCache: new Map(), visited: new Set(), stats: { matches: 0, ops: 0, images: 0, forms: 0, paths: 0, annots: 0, tagged: 0, textOps: 0, errors: 0 }, entries: [], changed: false };
+  processPage(env, pg);
+  const crop = pg.getCropBox();
+  const out = env.entries.filter(e => e.box).map(e => ({ ...e, vb: boxToView(e.box, R, crop) }));
+  scanCache.set(key, out);
+  return out;
+}
+function pickEntry(ents, x, y, pageArea) {
+  const tol = (COARSE ? 14 : 7) / Math.max(state.zoom, 0.4);
+  const inside = (b, t) => x >= b.x - t && x <= b.x + b.w + t && y >= b.y - t && y <= b.y + b.h + t;
+  const area = (e) => e.vb.w * e.vb.h;
+  const media = ents.filter(e => (e.kind === 'image' || e.kind === 'graphic') && inside(e.vb, 2)).sort((a, b) => area(a) - area(b));
+  if (media.length) return media[0];
+  const paths = ents.filter(e => {
+    if (e.kind !== 'path') return false;
+    const b = e.vb;
+    if (Math.min(b.w, b.h) < 8) return inside(b, tol);                    // thin line / rule
+    if (e.stroke) return inside(b, tol) && !(x > b.x + tol && x < b.x + b.w - tol && y > b.y + tol && y < b.y + b.h - tol); // outline only
+    return inside(b, 0) && area(e) < 0.25 * pageArea;                      // small filled shape
+  }).sort((a, b) => area(a) - area(b));
+  return paths[0] || null;
+}
+
+/* Floating menu next to the tapped element */
+let ctxRect = null;
+function hideCtx() {
+  const m = $('#ctx'); if (m) m.classList.add('hidden');
+  if (ctxRect) { ctxRect.remove(); ctxRect = null; }
+}
+function showCtx(p, vb, cx, cy, buttons) {
+  hideCtx();
+  const pe = pageEls.get(p.id), z = state.zoom;
+  if (pe) {
+    const r = document.createElement('div'); r.className = 'sel-rect';
+    Object.assign(r.style, { left: vb.x * z + 'px', top: vb.y * z + 'px', width: Math.max(vb.w, 4) * z + 'px', height: Math.max(vb.h, 4) * z + 'px' });
+    pe.el.appendChild(r); ctxRect = r;
+  }
+  const m = $('#ctx'); m.innerHTML = '';
+  for (const b of buttons) {
+    const el = document.createElement('button');
+    el.className = 'btn sm' + (b.danger ? ' danger' : '');
+    el.innerHTML = `<svg class="i"><use href="#i-${b.icon}"/></svg>${esc(b.label)}`;
+    el.onclick = () => { hideCtx(); b.run(); };
+    m.appendChild(el);
+  }
+  m.classList.remove('hidden');
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = clamp(cx - w / 2, 8, window.innerWidth - w - 8) + 'px';
+  let top = cy - h - 22; if (top < 56) top = cy + 26;
+  m.style.top = clamp(top, 8, window.innerHeight - h - 8) + 'px';
+}
+
+async function contentMenuAt(p, x, y, cx, cy) {
+  const editable = () => { if (state.readOnly) { toast('This document is view-only.', 'warn'); return false; } return true; };
+  // 1) a line of text
+  let it = null;
+  try {
+    const items = await textItemsView(p);
+    it = items.filter(t => x >= t.box.x - 2 && x <= t.box.x + t.box.w + 2 && y >= t.box.y - 2 && y <= t.box.y + t.box.h + 2).sort((a, b) => a.box.w * a.box.h - b.box.w * b.box.h)[0] || null;
+  } catch (e) { /* page without text */ }
+  if (it) {
+    showCtx(p, it.box, cx, cy, [
+      { icon: 'edit', label: 'Edit', run: () => { if (editable()) replaceTextAt(p, x, y); } },
+      { icon: 'trash', label: 'Delete', danger: true, run: () => { if (editable()) deleteTextItem(p, it); } },
+      { icon: 'copy', label: 'Copy', run: async () => { try { await navigator.clipboard.writeText(it.str); toast('Copied ✓', 'ok'); } catch (e) { toast('Copy not allowed here.', 'warn'); } } },
+    ]);
+    return;
+  }
+  // 2) a picture, diagram or line
+  let ents = [];
+  try { ents = await scanPageEntries(p, true); } catch (e) { return; }
+  const { w, h } = pview(p);
+  const hit = pickEntry(ents, x, y, w * h);
+  if (!hit) return;
+  const del = { icon: 'trash', label: 'Delete', danger: true, run: () => { if (editable()) deleteEntry(p, hit); } };
+  if (hit.kind === 'path') showCtx(p, hit.vb, cx, cy, [del]);
+  else showCtx(p, hit.vb, cx, cy, [
+    { icon: 'save', label: 'Save PNG', run: () => saveEntryImage(p, hit, 'png') },
+    { icon: 'save', label: 'JPG', run: () => saveEntryImage(p, hit, 'jpg') },
+    del,
+  ]);
+}
+
+async function deleteTextItem(p, it) {
+  const b = it.box;
+  const st = await runWatermark([p], 'Delete text', { mode: 'region', textOnly: true, viewRect: { x: b.x - 1, y: b.y - 1, w: b.w + 2, h: b.h + 2 } });
+  if (st && st.applied) { toast('Text deleted ✓  (Undo to bring it back)', 'ok'); return; }
+  if (!st) return;
+  try {
+    const bg = await sampleBorderColor(p, b);
+    commit('Cover text', () => { p.objects.push({ id: newId(), type: 'whiteout', x: b.x - 1, y: b.y - 1, w: b.w + 2, h: b.h + 2, color: bg }); touch(p); });
+    toast('Text hidden with a patch (this page has no deletable text).', 'info');
+  } catch (e) { fail('Delete failed', e); }
+}
+async function deleteEntry(p, e) {
+  const st = await runWatermark([p], 'Delete item', { mode: 'drop', paths: true, drops: new Set([e.ctx + ':' + e.s]) });
+  if (st && st.applied) toast('Deleted ✓  (Undo to bring it back)', 'ok');
+  else if (st) {
+    const b = e.vb;
+    try {
+      const bg = await sampleBorderColor(p, b);
+      commit('Cover item', () => { p.objects.push({ id: newId(), type: 'whiteout', x: b.x, y: b.y, w: b.w, h: b.h, color: bg }); touch(p); });
+      toast('Could not remove it from the file, so it was covered.', 'info');
+    } catch (err) { fail('Delete failed', err); }
+  }
+}
+
+/* Save a picture/diagram: render the page at high resolution and crop the element (PNG keeps transparency). */
+async function renderPageForCrop(p, maxK, transparent) {
+  const pg = await getPdfPage(p.src, p.idx);
+  const { R, w, h } = pview(p);
+  const k = Math.min(maxK, Math.sqrt(26e6 / (w * h)));
+  const vp = pg.getViewport({ scale: k, rotation: R });
+  const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+  await pg.render({ canvasContext: c.getContext('2d'), viewport: vp, background: transparent ? 'rgba(0,0,0,0)' : '#ffffff' }).promise;
+  return { canvas: c, k };
+}
+async function cropToBlob({ canvas, k }, vb, fmt) {
+  const pad = 1.5;
+  const x = Math.max(0, Math.floor((vb.x - pad) * k)), y = Math.max(0, Math.floor((vb.y - pad) * k));
+  const w = Math.max(1, Math.min(canvas.width - x, Math.ceil((vb.w + 2 * pad) * k))), h = Math.max(1, Math.min(canvas.height - y, Math.ceil((vb.h + 2 * pad) * k)));
+  const out = document.createElement('canvas'); out.width = w; out.height = h;
+  const ctx = out.getContext('2d');
+  if (fmt === 'jpg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); }
+  ctx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
+  const blob = await new Promise(r => out.toBlob(r, fmt === 'jpg' ? 'image/jpeg' : 'image/png', 0.95));
+  out.width = out.height = 0;
+  return blob;
+}
+async function saveEntryImage(p, e, fmt) {
+  busy(true, 'Saving picture…');
+  try {
+    const r = await renderPageForCrop(p, 5, fmt === 'png');
+    const blob = await cropToBlob(r, e.vb, fmt);
+    r.canvas.width = r.canvas.height = 0;
+    downloadBlob(blob, `${baseName()}_p${pageIndex(p.id) + 1}_picture.${fmt}`, blob.type);
+    toast('Picture saved ✓', 'ok');
+  } catch (err) { fail('Save picture failed', err); } finally { busy(false); }
+}
+async function extractImages() {
+  if (!needDoc()) return;
+  busy(true, 'Looking for pictures…');
+  try {
+    const zip = new JSZip(), seen = new Set(); let n = 0;
+    for (let i = 0; i < state.pages.length && n < 300; i++) {
+      busyText(`Page ${i + 1}/${state.pages.length}…`); await yieldUI();
+      const p = state.pages[i];
+      let ents; try { ents = await scanPageEntries(p, false); } catch (e) { continue; }
+      const picks = ents.filter(e => (e.kind === 'image' || e.kind === 'graphic') && e.vb.w >= 24 && e.vb.h >= 24)
+        .filter(e => { const sig = e.key + '|' + Math.round(e.vb.w) + 'x' + Math.round(e.vb.h); if (seen.has(sig)) return false; seen.add(sig); return true; });
+      if (!picks.length) continue;
+      const r = await renderPageForCrop(p, 4, true);
+      for (const e of picks) zip.file(`page${String(i + 1).padStart(3, '0')}_picture${++n}.png`, await cropToBlob(r, e.vb, 'png'));
+      r.canvas.width = r.canvas.height = 0;
+    }
+    if (!n) { toast('No separate pictures were found in this PDF (scanned pages are one big picture — use PDF → JPG).', 'warn', 7000); return; }
+    busyText('Zipping…');
+    downloadBlob(await zip.generateAsync({ type: 'blob' }), `${baseName()}_pictures.zip`, 'application/zip');
+    toast(`${n} picture${n > 1 ? 's' : ''} saved (ZIP). Repeated logos are included once.`, 'ok');
+  } catch (e) { fail('Extract failed', e); } finally { busy(false); }
+}
+
 /* ================================= UI ================================= */
 function onDocChanged() {
   if (state.sel && !findObj(state.sel.pageId, state.sel.objId)) state.sel = null;
@@ -3527,6 +3752,8 @@ function updateChrome() {
   $('#btnRedo').disabled = !history.redo.length;
   $('#btnUndo').title = history.undo.length ? `Undo: ${history.undo[history.undo.length - 1].label} (Ctrl+Z)` : 'Undo';
   $('#btnRedo').title = history.redo.length ? `Redo: ${history.redo[history.redo.length - 1].label} (Ctrl+Y)` : 'Redo';
+  $('#pagePill').classList.toggle('hidden', !has); $('#zoomPill').classList.toggle('hidden', !has);
+  $('#pillPage').textContent = has ? `${state.current + 1} / ${state.pages.length}` : '';
   $('#fname').textContent = has ? state.fileName + (state.readOnly ? ' (view only)' : '') : '';
   $('#pageCount').textContent = state.pages.length;
   $('#pageInput').value = has ? state.current + 1 : 0;
@@ -3608,9 +3835,13 @@ async function onOptAction(a) {
 
 /* ---- Side panel ---- */
 function openPanel(name) {
-  state.panel = state.panel === name ? null : name;
+  if (name === 'edit') state.panel = null;
+  else state.panel = state.panel === name ? null : name;
+  hideCtx();
   $('#panel').classList.toggle('open', !!state.panel);
-  $$('#toolbar [data-panel]').forEach(b => b.classList.toggle('active', b.dataset.panel === state.panel));
+  document.body.classList.toggle('panel-open', !!state.panel);
+  const navName = !state.panel ? 'edit' : ['watermark', 'convert', 'pages'].includes(state.panel) ? state.panel : 'more';
+  $$('#toolbar [data-panel]').forEach(b => b.classList.toggle('active', b.dataset.panel === navName));
   if (state.panel) renderPanel();
 }
 function closePanelOnPhone() { if (window.innerWidth <= 760 && state.panel) openPanel(state.panel); }
@@ -3873,7 +4104,17 @@ function wireUI() {
   $('#btnZoomIn').onclick = () => setZoom(state.zoom * 1.2);
   $('#btnZoomOut').onclick = () => setZoom(state.zoom / 1.2);
   $('#btnFit').onclick = () => fitWidth();
-  $('#btnMenu').onclick = () => openPanel('more');
+  $('#btnTheme').onclick = toggleTheme;
+  $('#pzIn').onclick = () => setZoom(state.zoom * 1.2);
+  $('#pzOut').onclick = () => setZoom(state.zoom / 1.2);
+  $('#pzFit').onclick = () => fitWidth();
+  $('#pillPage').onclick = async () => {
+    if (!state.pages.length) return;
+    const v = await askText('Go to page', `Page number (1–${state.pages.length})`, String(state.current + 1));
+    const n = parseInt(v, 10); if (n >= 1) goToPage(n - 1);
+  };
+  document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#ctx')) hideCtx(); }, true);
+  $('#viewer').addEventListener('scroll', hideCtx, { passive: true });
   $('#sbToggle').onclick = () => $('#sidebar').classList.toggle('open');
   $('#pageInput').onchange = (e) => { const n = parseInt(e.target.value, 10); if (n >= 1) goToPage(n - 1); else e.target.value = state.current + 1; };
   $('#pageInput').onfocus = (e) => e.target.select();
