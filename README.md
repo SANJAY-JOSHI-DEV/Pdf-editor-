@@ -17,20 +17,31 @@ Everything runs in your browser. No server, no upload, no login.
 - Drawing, highlight, shapes, eraser, images, signature, forms, find & highlight, page numbers, pages (rotate, delete, reorder, extract, split), undo/redo, metadata removal.
 
 ## Security
-- Files are processed only in the browser; the only network requests go to this site and cdn.jsdelivr.net (libraries).
-- Libraries are version-pinned with Subresource Integrity hashes.
-- Strict Content-Security-Policy: no eval (only WebAssembly for OCR), no inline event handlers, scripts only from this page (hash-pinned) and jsDelivr.
+- Files are processed only in the browser; the only network requests go to this site itself.
+- Libraries are bundled with the app (version-pinned, with Subresource Integrity hashes) — no CDN, no third-party server.
+- Strict Content-Security-Policy: no eval (only WebAssembly for OCR), no inline event handlers, scripts only from this site (the inline script is hash-pinned).
 - pdf.js runs with `isEvalSupported: false` (mitigates malicious-font exploits such as CVE-2024-4367).
 - All file names, form field names, search text and stored settings are escaped/validated before being shown.
 - Tested: XSS via file name, form fields, search, annotations and tampered localStorage; 9 corrupted/fuzzed PDFs (no crash).
 
-Files: `index.html` (the whole app), `manifest.json`, `sw.js`, `icon-192.png`, `icon-512.png`.
+Files: `index.html` (the whole app), `manifest.json`, `sw.js`, `icon-192.png`, `icon-512.png`, and `vendor/` (bundled libraries, see `vendor/LICENSES.md`).
+
+## Works fully offline
+All libraries (PDF engine, fonts, ZIP, OCR) are bundled in `vendor/`; the app talks to **no other server**. Open the https link once with internet, then it works without internet (airplane mode too). For OCR offline, press **Settings → Works offline → Download OCR** once (about 12 MB).
+
+## App lock & privacy
+- Settings → **App lock**: set a PIN or password. The saved file on your phone is then encrypted (AES-256-GCM, key from your PIN via PBKDF2). If you forget it, that saved file cannot be recovered; PDFs you downloaded are unaffected. "Forgot PIN" lets you erase the app's data and start fresh.
+- The app has no access to your phone's files: it only reads files you choose in the file picker. Opening the web page cannot read anything else on the phone.
+- Keep your GitHub account safe (2-factor login). Whoever can change this repository can change the app everyone gets.
+
+## Google Drive
+**Share / Save to Drive** (More tab or Save options) opens your phone's share sheet — choose **Drive**. To open a file from Drive, tap **Open** and pick it from Drive in the file picker. (No Google sign-in is built into the app, so nothing is uploaded unless you share it yourself.)
 
 ## Deploy on GitHub Pages (10 steps)
 
 1. Create a new GitHub repository (public, or private on a paid plan).
 2. Click **Add file → Upload files**.
-3. Upload `index.html`, `manifest.json`, `sw.js`, `icon-192.png`, `icon-512.png` to the repository root.
+3. Upload `index.html`, `manifest.json`, `sw.js`, `icon-192.png`, `icon-512.png` **and the whole `vendor/` folder** to the repository root.
 4. Commit to the `main` branch.
 5. Open **Settings → Pages**.
 6. Under **Build and deployment**, choose **Deploy from a branch**.
@@ -39,7 +50,7 @@ Files: `index.html` (the whole app), `manifest.json`, `sw.js`, `icon-192.png`, `
 9. On Android Chrome: menu ⋮ → **Add to Home screen** / **Install app**.
 10. After an update, reload the page twice (the service worker fetches the new version on the first load).
 
-The first visit needs internet to download the PDF libraries from cdn.jsdelivr.net; after that they are cached for offline use.
+The first visit needs internet; after that everything is cached for offline use.
 
 ## 15-minute test checklist
 
