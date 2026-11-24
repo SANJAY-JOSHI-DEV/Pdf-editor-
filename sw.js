@@ -1,11 +1,13 @@
 /* PDF Desk service worker.
-   Caches ONLY the app itself (page, icons and the bundled libraries in ./vendor). User PDFs are never fetched
+   Caches ONLY the app itself (page, icons, bundled libraries and fonts in ./vendor). User PDFs are never fetched
    over the network, so they are never cached here. Everything the app needs is same-origin, so it works offline. */
-const CACHE = 'pdfdesk-v7';   // keep in sync with OFFLINE_CACHE in index.html
+const CACHE = 'pdfdesk-v8';   // keep in sync with OFFLINE_CACHE in index.html
 const CORE = [
   './', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
-  './vendor/runtime.js', './vendor/pdf-lib.min.js', './vendor/fontkit.umd.min.js',
-  './vendor/pdf.min.js', './vendor/pdf.worker.min.js', './vendor/jszip.min.js',
+  './vendor/runtime.js', './vendor/pdf-lib.min.js', './vendor/fontkit.umd.min.js', './vendor/jszip.min.js',
+  './vendor/pdfjs/pdf.module.js', './vendor/pdfjs/pdf.worker.module.js',
+  './vendor/fonts/NotoSans-Regular.ttf', './vendor/fonts/NotoSans-Bold.ttf', './vendor/fonts/NotoSansDevanagari-Regular.ttf',
+  './vendor/fonts/NotoSansDevanagari-Bold.ttf', './vendor/fonts/NotoSansMath-Regular.ttf', './vendor/fonts/NotoSansSymbols2-Regular.ttf',
 ];
 
 self.addEventListener('install', (e) => {
@@ -31,7 +33,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;            // never touch other sites
 
-  // Bundled libraries / OCR files: never change for a given cache version -> cache first, fill on demand.
+  // Bundled libraries / fonts / OCR files: never change for a given cache version -> cache first, fill on demand.
   if (url.pathname.includes('/vendor/')) {
     e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
@@ -39,14 +41,14 @@ self.addEventListener('fetch', (e) => {
     })));
     return;
   }
-  // The app page and files: network first (so updates arrive), but fall back to the cache quickly when offline/slow.
+  // The app page and files: network first (so updates arrive). If the network is offline, slow, OR answers with an
+  // error page (404/5xx, e.g. the site was moved or is down), fall back to the copy saved on this device.
   e.respondWith((async () => {
-    try {
-      const res = await withTimeout(fetch(req), req.mode === 'navigate' ? 4000 : 8000);
-      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req.mode === 'navigate' ? './index.html' : req, copy)); }
-      return res;
-    } catch (err) {
-      return (await caches.match(req, { ignoreSearch: true })) || (req.mode === 'navigate' ? await caches.match('./index.html') : undefined) || Response.error();
-    }
+    const key = req.mode === 'navigate' ? './index.html' : req;
+    let res = null;
+    try { res = await withTimeout(fetch(req), req.mode === 'navigate' ? 4000 : 8000); } catch (err) { /* offline or slow */ }
+    if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(key, copy)); return res; }
+    const hit = await caches.match(key, { ignoreSearch: true });
+    return hit || res || Response.error();
   })());
 });
