@@ -7,18 +7,18 @@
 <meta name="description" content="Private, in-browser PDF editor. Files never leave your device.">
 <title>PDF Desk</title>
 <!-- Strict CSP: scripts only from this page (hash-pinned at build time) and the pinned CDN. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-ImuhpoHfci6wRhBbM38PogaLMLwK0d2Z9kPOMgvJfbQ='; worker-src 'self' blob: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-9jBp8s4JoqQq0oa/UxKuKORrggnLOeeBBg2BEZqgjBI='; worker-src 'self' blob:; connect-src 'self' blob: data:; img-src 'self' data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b8cff'/%3E%3Cpath d='M20 12h18l10 10v30H20z' fill='%23fff'/%3E%3Cpath d='M38 12v10h10' fill='%23cddaff'/%3E%3Cpath d='M25 44l14-14 4 4-14 14h-4z' fill='%235b8cff'/%3E%3C/svg%3E">
-<!-- Libraries: exact versions from jsDelivr (byte-identical to npm, so SRI hashes are stable).
-     pdf.js 3.x is the last line that ships a classic (non-module) build. -->
-<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js" integrity="sha384-weMABwrltA6jWR8DDe9Jp5blk+tZQh7ugpCsF3JwSA53WZM9/14PjS5LAJNHNjAI" crossorigin="anonymous"></script>
+<!-- Libraries are bundled in ./vendor (exact npm files, with integrity hashes), so the app works fully offline
+     and talks to no third-party server. pdf.js 3.x is the last line that ships a classic (non-module) build. -->
+<script src="vendor/pdf-lib.min.js" integrity="sha384-weMABwrltA6jWR8DDe9Jp5blk+tZQh7ugpCsF3JwSA53WZM9/14PjS5LAJNHNjAI"></script>
 <!-- fontkit's Indic (Devanagari) shaper uses a transpiled generator that needs regeneratorRuntime. -->
-<script src="https://cdn.jsdelivr.net/npm/regenerator-runtime@0.13.11/runtime.js" integrity="sha384-IBJ76nCigSR9ge55kUlGdv1kvy2bkM0kQJl6RpRnKxN2rEU7h5lZc4EgzdSzcTwa" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js" integrity="sha384-2p6U+1mmqF10USehFeRiyG2ESG9FwIqN+jxULn5w9jjQIihSn9Pt13dVCn/Hawjn" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
+<script src="vendor/runtime.js" integrity="sha384-IBJ76nCigSR9ge55kUlGdv1kvy2bkM0kQJl6RpRnKxN2rEU7h5lZc4EgzdSzcTwa"></script>
+<script src="vendor/fontkit.umd.min.js" integrity="sha384-2p6U+1mmqF10USehFeRiyG2ESG9FwIqN+jxULn5w9jjQIihSn9Pt13dVCn/Hawjn"></script>
+<script src="vendor/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e"></script>
+<script src="vendor/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"></script>
 <style>
 :root{
   --bg:#0f1115; --bg2:#14161b; --panel:#181b22; --panel2:#20242d; --line:#2b303b;
@@ -99,6 +99,26 @@ textarea{resize:vertical}
 .pill button:active{background:var(--panel2)}
 #pagePill{left:10px;bottom:10px} #pagePill button{font-size:14px;font-weight:600}
 #zoomPill{right:10px;bottom:10px}
+#lock{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+#lock.cover .lockbox{visibility:hidden}
+.lockbox{width:min(100%,340px);text-align:center;display:flex;flex-direction:column;gap:10px}
+.lockbox h2{margin:0;font-size:20px}
+.lockbox .sub{color:var(--muted);margin:0}
+.lockbox input{text-align:center;font-size:22px;letter-spacing:3px;min-height:54px;width:100%}
+.lockbox svg.big{width:46px;height:46px;margin:0 auto;color:var(--accent)}
+.lockerr{min-height:20px;color:var(--danger);font-size:13px}
+.linkbtn{background:none;border:none;color:var(--muted);text-decoration:underline;padding:8px}
+body.locked{overflow:hidden}
+#lock{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+#lock.cover .lockbox{visibility:hidden}
+.lockbox{width:min(100%,340px);text-align:center;display:flex;flex-direction:column;gap:10px}
+.lockbox h2{margin:0;font-size:20px}
+.lockbox .sub{color:var(--muted);margin:0}
+.lockbox input{text-align:center;font-size:22px;letter-spacing:3px;min-height:54px;width:100%}
+.lockbox svg.big{width:46px;height:46px;margin:0 auto;color:var(--accent)}
+.lockerr{min-height:20px;color:var(--danger);font-size:13px}
+.linkbtn{background:none;border:none;color:var(--muted);text-decoration:underline;padding:8px}
+body.locked{overflow:hidden}
 #ctx{position:fixed;z-index:70;display:flex;gap:2px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.4);max-width:calc(100vw - 16px);flex-wrap:wrap}
 #ctx .btn{height:38px;padding:0 12px}
 @media (min-width:761px){.pill{display:none!important}}
@@ -240,6 +260,10 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M8 11l8-4M8 13l8 4"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M8 11l8-4M8 13l8 4"/></symbol>
   <symbol id="i-drop" viewBox="0 0 24 24"><path d="M14 4l6 6-9 9H5v-6z"/><path d="M11 7l6 6"/></symbol>
 </svg>
 
@@ -328,6 +352,36 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
   </aside>
 </div>
 
+<div id="lock" class="hidden" role="dialog" aria-modal="true" aria-label="App locked">
+  <div class="lockbox">
+    <svg class="i big"><use href="#i-lock"/></svg>
+    <h2>PDF Desk is locked</h2>
+    <p class="sub">Enter your PIN or password</p>
+    <input id="lockInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="PIN or password">
+    <div id="lockErr" class="lockerr" role="alert"></div>
+    <button class="btn primary big" id="lockBtn">Unlock</button>
+    <button class="linkbtn" id="lockForgot">Forgot PIN?</button>
+    <div id="lockReset" class="hidden">
+      <p class="sub">There is no way to recover a forgotten PIN. You can erase this app's data on this device (the saved file, settings and the PIN) and start fresh. PDFs you downloaded are not affected.</p>
+      <button class="btn danger big" id="lockErase">Erase everything on this device</button>
+    </div>
+  </div>
+</div>
+<div id="lock" class="hidden" role="dialog" aria-modal="true" aria-label="App locked">
+  <div class="lockbox">
+    <svg class="i big"><use href="#i-lock"/></svg>
+    <h2>PDF Desk is locked</h2>
+    <p class="sub">Enter your PIN or password</p>
+    <input id="lockInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="PIN or password">
+    <div id="lockErr" class="lockerr" role="alert"></div>
+    <button class="btn primary big" id="lockBtn">Unlock</button>
+    <button class="linkbtn" id="lockForgot">Forgot PIN?</button>
+    <div id="lockReset" class="hidden">
+      <p class="sub">There is no way to recover a forgotten PIN. You can erase this app's data on this device (the saved file, settings and the PIN) and start fresh. PDFs you downloaded are not affected.</p>
+      <button class="btn danger big" id="lockErase">Erase everything on this device</button>
+    </div>
+  </div>
+</div>
 <div id="ctx" class="hidden" role="menu"></div>
 <div id="toasts" role="status" aria-live="polite"></div>
 <div id="busy" class="hidden"><div class="box"><div class="spin"></div><div id="busyText">Working…</div></div></div>
@@ -354,7 +408,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt
 const LIBS_OK = typeof PDFLib !== 'undefined' && typeof pdfjsLib !== 'undefined';
 const { PDFDocument, StandardFonts, rgb, degrees, PDFName, PDFDict, PDFArray, PDFRef, PDFNumber,
   PDFRawStream, PDFString, PDFHexString, LineCapStyle, BlendMode } = LIBS_OK ? PDFLib : {};
-const PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+const PDFJS_WORKER = 'vendor/pdf.worker.min.js';
 if (LIBS_OK) pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
 
 function toast(msg, type = 'info', ms) {
@@ -647,6 +701,8 @@ const persist = { done: new Set(), busy: false, again: false, off: false, warned
 const PERSIST_LIMIT = 400 * 1048576;
 async function persistSession() {
   if (!state.settings.remember || persist.off || !state.pages.length) return;
+  const useEnc = lockEnabled(), key = LOCK.key;
+  if (useEnc && !key) return;                 // locked: never write anything readable
   if (persist.busy) { persist.again = true; return; }
   persist.busy = true;
   try {
@@ -660,13 +716,24 @@ async function persistSession() {
       if (!persist.warned) { persist.warned = true; toast('This file is too big to remember on the device — it will not be kept after you close the app.', 'warn', 8000); }
       return;
     }
+    // Encrypt (async) BEFORE the IndexedDB transaction starts, because a transaction closes while awaiting other promises.
+    const putFiles = [];
+    for (const id of srcIds) if (!persist.done.has(id)) {
+      const s0 = state.sources.get(id);
+      putFiles.push(useEnc ? await sealRec(key, id, { kind: 'src', name: s0.name, info: s0.info }, s0.bytes) : { id, kind: 'src', name: s0.name, bytes: s0.bytes, info: s0.info });
+    }
+    for (const id of imgIds) if (!persist.done.has(id)) {
+      const im = state.images.get(id);
+      putFiles.push(useEnc ? await sealRec(key, id, { kind: 'img', mime: im.mime }, im.bytes) : { id, kind: 'img', bytes: im.bytes, mime: im.mime });
+    }
+    const sessObj = { savedAt: Date.now(), fileName: state.fileName, fileSize: state.fileSize, origSrc: state.origSrc, readOnly: state.readOnly, current: state.current, pages: structuredClone(state.pages) };
+    const sessRec = useEnc ? await sealJson(key, 'last', sessObj) : { id: 'last', ...sessObj };
     const db = await idb();
     await new Promise((res, rej) => {
       const tx = db.transaction(['files', 'session'], 'readwrite'), files = tx.objectStore('files'), sess = tx.objectStore('session');
       const used = new Set([...srcIds, ...imgIds]);
-      for (const id of srcIds) if (!persist.done.has(id)) { const s = state.sources.get(id); files.put({ id, kind: 'src', name: s.name, bytes: s.bytes, info: s.info }); }
-      for (const id of imgIds) if (!persist.done.has(id)) { const im = state.images.get(id); files.put({ id, kind: 'img', bytes: im.bytes, mime: im.mime }); }
-      sess.put({ id: 'last', savedAt: Date.now(), fileName: state.fileName, fileSize: state.fileSize, origSrc: state.origSrc, readOnly: state.readOnly, current: state.current, pages: structuredClone(state.pages) });
+      for (const r of putFiles) files.put(r);
+      sess.put(sessRec);
       files.getAllKeys().onsuccess = (e) => { for (const k of e.target.result) if (!used.has(k)) { files.delete(k); persist.done.delete(k); } };
       tx.oncomplete = () => { for (const id of used) persist.done.add(id); res(); };
       tx.onerror = tx.onabort = () => rej(tx.error || new Error('Storage error'));
@@ -692,7 +759,7 @@ async function forgetSession() {
  * that depend on other files (merges, watermark versions) are not autosaved.
  */
 const autosave = debounce(() => {
-  if (!state.origSrc || !state.pages.length) return;
+  if (!state.origSrc || !state.pages.length || lockEnabled()) return;
   const simple = state.pages.every(p => p.src === state.origSrc);
   const data = { name: state.fileName, size: state.fileSize, savedAt: Date.now(), simple };
   if (simple) {
@@ -703,12 +770,11 @@ const autosave = debounce(() => {
 const saveSoon = debounce(() => { persistSession(); }, 900);
 
 async function clearAllLocalData() {
-  if (!await confirmBox('Clear all local data', 'This removes settings, autosaved sessions, saved signature, uploaded fonts and the offline app cache from this browser. Your open document is not affected.', 'Clear', true)) return;
+  if (!await confirmBox('Clear all local data', 'This removes settings, the app lock, the saved file, saved signature and uploaded fonts from this browser. PDFs you downloaded are not affected.', 'Clear', true)) return;
   try {
     Object.keys(localStorage).filter(k => k.startsWith('pdfdesk.')).forEach(k => localStorage.removeItem(k));
     try { (await idb()).close(); } catch (e) { /* ignore */ } _db = null;
     await new Promise(r => { const q = indexedDB.deleteDatabase('pdfdesk'); q.onsuccess = q.onerror = q.onblocked = () => r(); });
-    if (window.caches) for (const k of await caches.keys()) await caches.delete(k);
     toast('Local data cleared. Reloading…', 'ok');
     setTimeout(() => location.reload(), 900);
   } catch (e) { fail('Clear data', e); }
@@ -868,6 +934,8 @@ async function loadPdfFile(file, { forMerge = false } = {}) {
 }
 
 async function openMainFile(file) {
+  if (isLocked()) return;
+  if (isLocked()) return;
   if (history.undo.length && !await confirmBox('Open another PDF?', 'Unsaved edits to the current document will be lost.', 'Open')) return;
   const prevSources = [...state.sources.values()];
   const src = await loadPdfFile(file);
@@ -892,20 +960,26 @@ async function resumeLastSession() {
   if (!state.settings.remember || state.pages.length) return false;
   let rec;
   try { rec = await idbDo('session', 'readonly', st => st.get('last')); } catch (e) { return false; }
-  if (!rec || !Array.isArray(rec.pages) || !rec.pages.length) return false;
+  if (!rec) return false;
+  if (rec.enc && !LOCK.key) { if (!lockEnabled()) await forgetSession(); return false; }   // encrypted but no key: wait for unlock
   busy(true, 'Opening your last file…');
   try {
+    if (rec.enc) rec = { id: 'last', ...(await openJson(LOCK.key, rec)) };
+    if (!Array.isArray(rec.pages) || !rec.pages.length) return false;
     const need = new Set(rec.pages.map(p => p.src));
     const imgNeed = new Set();
     for (const p of rec.pages) for (const o of p.objects || []) if (o.imageId) imgNeed.add(o.imageId);
     const files = await idbDo('files', 'readonly', st => st.getAll());
     const byId = new Map(files.map(f => [f.id, f]));
     for (const id of need) {
-      const f = byId.get(id); if (!f || !f.bytes) throw new Error('A saved part of the file is missing');
+      const raw = byId.get(id); if (!raw) throw new Error('A saved part of the file is missing');
+      const f = raw.enc ? await openRec(LOCK.key, raw) : raw;
+      if (!f.bytes) throw new Error('A saved part of the file is missing');
       state.sources.set(id, { id, name: f.name, bytes: f.bytes, info: f.info, pdfjs: null, libDoc: null, pageCache: new Map(), textCache: new Map() });
     }
     for (const id of imgNeed) {
-      const f = byId.get(id); if (!f) continue;
+      const raw = byId.get(id); if (!raw) continue;
+      const f = raw.enc ? await openRec(LOCK.key, raw) : raw;
       const el = new Image(); el.src = URL.createObjectURL(new Blob([f.bytes], { type: f.mime })); await el.decode();
       state.images.set(id, { bytes: f.bytes, mime: f.mime, el, w: el.naturalWidth, h: el.naturalHeight });
     }
@@ -1802,7 +1876,7 @@ async function placeSignature() {
   });
   if (!res) return;
   try {
-    if (res.remember) LS.set('signature', res.url);
+    if (res.remember && !lockEnabled()) LS.set('signature', res.url);
     const bytes = Uint8Array.from(atob(res.url.split(',')[1]), c => c.charCodeAt(0));
     const id = await registerImage(bytes, 'image/png');
     await placeImageObject(id, 170, 'Add signature');
@@ -2813,7 +2887,7 @@ async function drawPdfObjects(doc, pg, pm, R, cache, pageNo) {
 }
 
 async function downloadPdf() {
-  if (!needDoc()) return;
+  if (isLocked() || !needDoc()) return;
   if (state.readOnly) { toast('This document is view-only (encrypted/damaged). Reopen it and choose "Convert to image copy" to save edits.', 'warn', 8000); return; }
   busy(true, 'Building PDF…');
   try {
@@ -3352,26 +3426,26 @@ function looksGarbled(t) {
 
 /* ---- OCR (Tesseract, loaded only when needed) ---- */
 let tessLoading = null;
+const absUrl = (p) => new URL(p, location.href).href;
+/** OCR files live in ./vendor/tesseract (same site, cached by the service worker) — no third-party server. */
+const ocrOptions = (logger) => ({ workerPath: absUrl('vendor/tesseract/worker.min.js'), corePath: absUrl('vendor/tesseract'), langPath: absUrl('vendor/tesseract/lang'), workerBlobURL: false, cacheMethod: 'none', logger });
 function loadTesseract() {
   if (window.Tesseract) return Promise.resolve();
   if (!tessLoading) tessLoading = new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+    s.src = 'vendor/tesseract/tesseract.min.js';
     s.integrity = 'sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F';
-    s.crossOrigin = 'anonymous';
-    s.onload = () => res(); s.onerror = () => { tessLoading = null; rej(new Error('OCR engine could not load (internet needed the first time)')); };
+    s.onload = () => res(); s.onerror = () => { tessLoading = null; rej(new Error('OCR engine could not load. Open the app once with internet (Settings → Works offline → Download OCR).')); };
     document.head.appendChild(s);
   });
   return tessLoading;
 }
 async function ocrPdf(langs) {
-  busy(true, 'Loading OCR engine (first time ~10–20 MB)…');
+  busy(true, 'Loading OCR engine…');
   let worker;
   try {
     await loadTesseract();
-    worker = await Tesseract.createWorker(langs, 1, {
-      logger: m => { if (m.status && m.progress != null && /load|initializ/.test(m.status)) busyText(`${m.status} ${Math.round(m.progress * 100)}%`); }
-    });
+    worker = await Tesseract.createWorker(langs, 1, ocrOptions(m => { if (m.status && m.progress != null && /load|initializ/.test(m.status)) busyText(`${m.status} ${Math.round(m.progress * 100)}%`); }));
     const parts = [];
     for (let i = 0; i < state.pages.length; i++) {
       busyText(`Reading page ${i + 1}/${state.pages.length} (OCR)…`); await yieldUI();
@@ -3386,11 +3460,11 @@ async function ocrPdf(langs) {
 
 /* Hybrid: keep good text-layer lines (exact symbols), re-read only broken lines with OCR. */
 async function hybridText() {
-  busy(true, 'Loading OCR engine (first time ~10–20 MB)…');
+  busy(true, 'Loading OCR engine…');
   let worker;
   try {
     await loadTesseract();
-    worker = await Tesseract.createWorker('hin+eng', 1, { logger: m => { if (m.status && m.progress != null && /load|initializ/.test(m.status)) busyText(`${m.status} ${Math.round(m.progress * 100)}%`); } });
+    worker = await Tesseract.createWorker('hin+eng', 1, ocrOptions(m => { if (m.status && m.progress != null && /load|initializ/.test(m.status)) busyText(`${m.status} ${Math.round(m.progress * 100)}%`); }));
     const parts = [];
     for (let i = 0; i < state.pages.length; i++) {
       busyText(`Fixing page ${i + 1}/${state.pages.length}…`); await yieldUI();
@@ -3649,13 +3723,17 @@ function panelMore(b) {
     <button class="tile" data-open="export"><b>Save options</b><small>images, compress, privacy</small></button>
     <button class="tile" data-tool2="field"><b>Add form field</b><small>fillable box</small></button>
     <button class="tile" data-open="settings"><b>Settings</b><small>fonts, defaults</small></button>
+    <button class="tile" id="mrShare" ${state.pages.length ? '' : 'disabled'}><b>Share / Drive</b><small>save to Google Drive</small></button>
+    ${lockEnabled() ? '<button class="tile" id="mrLock"><b>Lock now</b><small>PIN needed to open</small></button>' : '<button class="tile" data-open="settings"><b>App lock</b><small>set a PIN</small></button>'}
     <button class="tile" id="mrClose" ${state.pages.length ? '' : 'disabled'}><b>Close file</b><small>forget it from this phone</small></button>
     <button class="tile" id="mrTheme"><b>${state.settings.theme === 'light' ? 'Dark mode' : 'Light mode'}</b><small>change look</small></button>
   </div>
-  <div class="note">Tip: in <b>Edit</b>, tap any text, picture or line of the PDF to edit, delete or save it.</div>`;
+  <div class="note">Tip: in <b>Edit</b>, tap any text, picture or line of the PDF to edit, delete or save it. To open a file from Google Drive, tap <b>Open</b> and choose Drive in your phone's file picker.</div>`;
   $('#mrSave', b).onclick = downloadPdf;
   $('#mrTheme', b).onclick = toggleTheme;
   $('#mrClose', b).onclick = closeDocument;
+  $('#mrShare', b).onclick = sharePdf;
+  if ($('#mrLock', b)) $('#mrLock', b).onclick = () => { openPanel('edit'); showLock(); };
   $$('[data-open]', b).forEach(x => x.onclick = () => openPanel(x.dataset.open));
   $$('[data-tool2]', b).forEach(x => x.onclick = () => { setTool(x.dataset.tool2); closePanelOnPhone(); });
 }
@@ -3849,6 +3927,240 @@ async function extractImages() {
     downloadBlob(await zip.generateAsync({ type: 'blob' }), `${baseName()}_pictures.zip`, 'application/zip');
     toast(`${n} picture${n > 1 ? 's' : ''} saved (ZIP). Repeated logos are included once.`, 'ok');
   } catch (e) { fail('Extract failed', e); } finally { busy(false); }
+}
+
+/* ====================== App lock (PIN / password) ======================
+ * - The PIN is never stored. A key is derived from it (PBKDF2-SHA256, 310k rounds, random salt) and the
+ *   only thing kept is an encrypted "check" value used to verify the PIN.
+ * - While the lock is ON, the file saved on the device is encrypted with that key (AES-256-GCM), including
+ *   file name and text typed into the document. The key lives only in memory and is dropped when locked.
+ * - This protects against someone who picks up your phone. It cannot protect a document you currently have
+ *   open on an unlocked screen, and a forgotten PIN cannot be recovered.
+ */
+const LOCK = { key: null, hiddenAt: 0 };
+const te = new TextEncoder(), td = new TextDecoder();
+const u8b64 = (u) => { let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+const b64u8 = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const lockMeta = () => LS.get('lock', null);
+const lockEnabled = () => { const m = lockMeta(); return !!(m && m.salt && m.iv && m.check); };
+const isLocked = () => document.body.classList.contains('locked');
+
+async function deriveLockKey(pin, salt, iter) {
+  const base = await crypto.subtle.importKey('raw', te.encode(pin), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function aesEnc(key, u8) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  return { iv, ct: new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, u8)) };
+}
+const aesDec = async (key, iv, ct) => new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct));
+
+/* record container: [4-byte header length][JSON header][raw bytes] */
+function packRec(meta, bytes) {
+  const h = te.encode(JSON.stringify(meta)), out = new Uint8Array(4 + h.length + bytes.length);
+  new DataView(out.buffer).setUint32(0, h.length); out.set(h, 4); out.set(bytes, 4 + h.length);
+  return out;
+}
+function unpackRec(u8) {
+  const n = new DataView(u8.buffer, u8.byteOffset, u8.byteLength).getUint32(0);
+  return { ...JSON.parse(td.decode(u8.subarray(4, 4 + n))), bytes: u8.slice(4 + n) };
+}
+async function sealRec(key, id, meta, bytes) { const { iv, ct } = await aesEnc(key, packRec(meta, bytes)); return { id, enc: 1, iv, data: ct }; }
+async function sealJson(key, id, obj) { const { iv, ct } = await aesEnc(key, te.encode(JSON.stringify(obj))); return { id, enc: 1, iv, data: ct }; }
+const openRec = async (key, rec) => unpackRec(await aesDec(key, rec.iv, rec.data));
+const openJson = async (key, rec) => JSON.parse(td.decode(await aesDec(key, rec.iv, rec.data)));
+
+async function lockCheckPin(pin) {
+  const m = lockMeta(); if (!m) return null;
+  try {
+    const key = await deriveLockKey(pin, b64u8(m.salt), m.iter);
+    return td.decode(await aesDec(key, b64u8(m.iv), b64u8(m.check))) === 'pdfdesk-ok' ? key : null;
+  } catch (e) { return null; }
+}
+async function newLockMeta(pin, timeout) {
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iter = 310000;
+  const key = await deriveLockKey(pin, salt, iter);
+  const { iv, ct } = await aesEnc(key, te.encode('pdfdesk-ok'));
+  return { key, meta: { salt: u8b64(salt), iter, iv: u8b64(iv), check: u8b64(ct), numeric: /^\d+$/.test(pin), timeout } };
+}
+/** After the lock settings change, re-write the saved file in the right (encrypted or plain) form. */
+async function resaveSession() { await forgetSession(); persist.off = false; persistSession(); }
+async function enableLock(pin, timeout) {
+  const { key, meta } = await newLockMeta(pin, timeout);
+  LS.set('lock', meta); LOCK.key = key;
+  LS.del('signature'); LS.del('session'); LS.del('lockTries');
+  await resaveSession();
+}
+async function changeLockPin(pin) {
+  const old = lockMeta(), { key, meta } = await newLockMeta(pin, old ? old.timeout : 60);
+  LS.set('lock', meta); LOCK.key = key; await resaveSession();
+}
+async function disableLock() { LS.del('lock'); LS.del('lockTries'); LOCK.key = null; await resaveSession(); }
+
+/* ---- the lock screen ---- */
+function showLock() {
+  const m = lockMeta(); if (!m) return;
+  LOCK.key = null; hideCtx();
+  document.body.classList.add('locked');
+  for (const el of document.body.children) if (el.id !== 'lock') el.setAttribute('inert', '');
+  const L = $('#lock'); L.classList.remove('hidden', 'cover');
+  const inp = $('#lockInput'); inp.value = ''; inp.inputMode = m.numeric ? 'numeric' : 'text';
+  $('#lockErr').textContent = ''; $('#lockReset').classList.add('hidden'); $('#lockForgot').classList.remove('hidden');
+  setTimeout(() => inp.focus(), 60);
+}
+function hideLock() {
+  document.body.classList.remove('locked');
+  for (const el of document.body.children) el.removeAttribute('inert');
+  $('#lock').classList.add('hidden'); $('#lock').classList.remove('cover');
+  $('#lockInput').value = '';
+}
+async function tryUnlock() {
+  const err = (t) => { $('#lockErr').textContent = t; };
+  const tries = LS.get('lockTries', { n: 0, until: 0 });
+  const wait = tries.until - Date.now();
+  if (wait > 0) { err(`Too many wrong tries. Wait ${Math.ceil(wait / 1000)} s.`); return; }
+  const pin = $('#lockInput').value; if (!pin) return;
+  $('#lockBtn').disabled = true; err('Checking…');
+  const key = await lockCheckPin(pin);
+  $('#lockBtn').disabled = false;
+  if (!key) {
+    tries.n = (tries.n || 0) + 1;
+    if (tries.n >= 5) tries.until = Date.now() + Math.min(15 * 60e3, 30e3 * 2 ** (tries.n - 5));
+    LS.set('lockTries', tries);
+    $('#lockInput').value = ''; err(tries.n >= 5 ? 'Wrong PIN. Please wait before trying again.' : 'Wrong PIN. Try again.');
+    return;
+  }
+  LS.del('lockTries'); LOCK.key = key; hideLock();
+  if (!state.pages.length) await resumeLastSession(); else persistSession();
+}
+async function eraseEverything() {
+  try { (await idb()).close(); } catch (e) { /* ignore */ } _db = null;
+  Object.keys(localStorage).filter(k => k.startsWith('pdfdesk.')).forEach(k => localStorage.removeItem(k));
+  await new Promise(r => { const q = indexedDB.deleteDatabase('pdfdesk'); q.onsuccess = q.onerror = q.onblocked = () => r(); });
+  location.reload();
+}
+function wireLock() {
+  $('#lockBtn').onclick = tryUnlock;
+  $('#lockInput').onkeydown = (e) => { if (e.key === 'Enter') tryUnlock(); };
+  $('#lockForgot').onclick = () => { $('#lockReset').classList.remove('hidden'); $('#lockForgot').classList.add('hidden'); };
+  $('#lockErase').onclick = eraseEverything;
+  document.addEventListener('visibilitychange', () => {
+    if (!lockEnabled() || isLocked()) return;
+    const m = lockMeta(), L = $('#lock');
+    if (document.visibilityState === 'hidden') {
+      LOCK.hiddenAt = Date.now();
+      persistSession();                              // flush while the key is still in memory
+      if (!(m.timeout > 0)) showLock();
+      else { L.classList.remove('hidden'); L.classList.add('cover'); }   // blank cover for the app switcher
+    } else if (L.classList.contains('cover')) {
+      if (Date.now() - LOCK.hiddenAt >= m.timeout * 1000) showLock();
+      else { L.classList.add('hidden'); L.classList.remove('cover'); }
+    }
+  });
+}
+
+/* ---- Settings UI ---- */
+function renderLockSettings(box) {
+  const m = lockMeta();
+  const opts = (v) => [[0, 'Immediately'], [60, 'After 1 minute'], [300, 'After 5 minutes'], [900, 'After 15 minutes'], [3600, 'After 1 hour']].map(([s, l]) => `<option value="${s}" ${s === v ? 'selected' : ''}>${l}</option>`).join('');
+  if (!m) {
+    box.innerHTML = `<div class="note">Protect the app with a PIN or password. The file saved on this device is then <b>encrypted</b> with it. <b>If you forget it, the saved file cannot be recovered</b> (PDFs you already downloaded are not affected). 6 or more characters is recommended.</div>
+      <div class="col"><input type="password" id="lkNew" placeholder="New PIN or password (min 4)" autocomplete="new-password"><input type="password" id="lkNew2" placeholder="Repeat it" autocomplete="new-password"></div>
+      <div class="row"><label>Lock <select id="lkTime">${opts(60)}</select></label></div>
+      <button class="btn primary" id="lkOn"><svg class="i"><use href="#i-lock"/></svg>Turn on app lock</button>`;
+    $('#lkOn', box).onclick = async () => {
+      const a = $('#lkNew', box).value, b = $('#lkNew2', box).value;
+      if (a.length < 4) { toast('Use at least 4 characters.', 'warn'); return; }
+      if (a !== b) { toast('The two entries are different.', 'warn'); return; }
+      busy(true, 'Securing…');
+      try { await enableLock(a, +$('#lkTime', box).value); toast('App lock is ON. Remember your PIN — it cannot be recovered.', 'ok', 7000); }
+      catch (e) { fail('Could not turn on the lock', e); } finally { busy(false); }
+      renderLockSettings(box);
+    };
+    return;
+  }
+  box.innerHTML = `<div class="note">App lock is <b>ON</b> ✓ — the saved file is encrypted.</div>
+    <div class="row"><label>Lock <select id="lkTime">${opts(m.timeout || 0)}</select></label></div>
+    <div class="row"><button class="btn outline" id="lkNow"><svg class="i"><use href="#i-lock"/></svg>Lock now</button><button class="btn outline" id="lkChange">Change PIN</button><button class="btn outline danger" id="lkOff">Turn off</button></div>
+    <div class="note">"Immediately" locks the moment you leave the app — also while you pick a file from your phone — so 1 minute or more is recommended.</div>`;
+  $('#lkTime', box).onchange = (e) => { LS.set('lock', { ...lockMeta(), timeout: +e.target.value }); toast('Saved.', 'ok'); };
+  $('#lkNow', box).onclick = () => { openPanel('edit'); showLock(); };
+  $('#lkOff', box).onclick = async () => {
+    const pin = await askText('Turn off app lock', 'Enter your current PIN', '', 'password'); if (pin == null) return;
+    busy(true, 'Checking…'); const key = await lockCheckPin(pin); busy(false);
+    if (!key) { toast('Wrong PIN.', 'error'); return; }
+    busy(true, 'Updating…'); try { await disableLock(); } finally { busy(false); }
+    toast('App lock turned off.', 'ok'); renderLockSettings(box);
+  };
+  $('#lkChange', box).onclick = async () => {
+    const res = await modal({
+      title: 'Change PIN',
+      body: `<div class="col"><input type="password" id="cpOld" placeholder="Current PIN" autocomplete="current-password"><input type="password" id="cpNew" placeholder="New PIN or password (min 4)" autocomplete="new-password"><input type="password" id="cpNew2" placeholder="Repeat new one" autocomplete="new-password"></div>`,
+      buttons: [{ label: 'Cancel', value: null }, { label: 'Change', primary: true, collect: true }],
+      collect: (r) => {
+        const o = $('#cpOld', r).value, a = $('#cpNew', r).value, b = $('#cpNew2', r).value;
+        if (a.length < 4) { toast('Use at least 4 characters.', 'warn'); return undefined; }
+        if (a !== b) { toast('The two new entries are different.', 'warn'); return undefined; }
+        return { o, a };
+      }
+    });
+    if (!res) return;
+    busy(true, 'Checking…');
+    try {
+      if (!await lockCheckPin(res.o)) { toast('Current PIN is wrong.', 'error'); return; }
+      await changeLockPin(res.a); toast('PIN changed. Remember it — it cannot be recovered.', 'ok', 7000);
+    } catch (e) { fail('Could not change the PIN', e); } finally { busy(false); }
+  };
+}
+
+/* ====================== Offline status & Share (Google Drive via the phone's share sheet) ====================== */
+const OFFLINE_CACHE = 'pdfdesk-v7';   // keep in sync with sw.js
+const OCR_FILES = ['vendor/tesseract/tesseract.min.js', 'vendor/tesseract/worker.min.js', 'vendor/tesseract/tesseract-core-simd-lstm.wasm.js', 'vendor/tesseract/tesseract-core-lstm.wasm.js', 'vendor/tesseract/lang/eng.traineddata.gz', 'vendor/tesseract/lang/hin.traineddata.gz'];
+const CORE_FILES = ['vendor/pdf-lib.min.js', 'vendor/fontkit.umd.min.js', 'vendor/pdf.min.js', 'vendor/pdf.worker.min.js', 'vendor/jszip.min.js', 'vendor/runtime.js'];
+
+async function cachedAll(files) {
+  try { if (!window.caches) return false; const c = await caches.open(OFFLINE_CACHE); for (const f of files) if (!await c.match(f)) return false; return true; } catch (e) { return false; }
+}
+async function renderOfflineSettings(box) {
+  box.innerHTML = '<div class="row"><div class="spin"></div> Checking…</div>';
+  const secure = window.isSecureContext && 'serviceWorker' in navigator;
+  const core = await cachedAll(CORE_FILES), ocr = await cachedAll(OCR_FILES);
+  box.innerHTML = `<div class="note">${secure ? '' : 'Offline mode needs the https:// link. '}
+    PDF editing, watermark tools, convert and Hindi/English text: <b>${core ? 'ready offline ✓' : 'will be ready after the app has loaded once with internet'}</b>.<br>
+    OCR (read scans / fix broken Hindi): <b>${ocr ? 'ready offline ✓' : 'not downloaded yet'}</b>.</div>
+    ${ocr ? '' : '<button class="btn outline" id="ofOcr">Download OCR for offline (about 12 MB)</button>'}
+    <div class="note">Nothing is ever sent to any server — all libraries are part of this app.</div>`;
+  if ($('#ofOcr', box)) $('#ofOcr', box).onclick = async () => {
+    busy(true, 'Downloading OCR…');
+    try {
+      const c = await caches.open(OFFLINE_CACHE);
+      for (let i = 0; i < OCR_FILES.length; i++) { busyText(`Downloading OCR ${i + 1}/${OCR_FILES.length}…`); await c.add(OCR_FILES[i]); }
+      toast('OCR is ready for offline use ✓', 'ok');
+    } catch (e) { fail('Download failed (check your internet)', e); } finally { busy(false); }
+    renderOfflineSettings(box);
+  };
+}
+
+/* Share the edited PDF (Android: choose "Drive" in the share sheet). Falls back to a normal download. */
+async function sharePdf() {
+  if (isLocked() || !needDoc()) return;
+  if (state.readOnly) { toast('This document is view-only.', 'warn'); return; }
+  busy(true, 'Preparing PDF…');
+  let file, t0 = Date.now();
+  try {
+    const { bytes } = await buildPdf(state.pages);
+    file = new File([bytes], `${baseName()}_edited.pdf`, { type: 'application/pdf' });
+  } catch (e) { fail('Could not prepare the PDF', e); return; } finally { busy(false); }
+  if (!(navigator.canShare && navigator.canShare({ files: [file] }))) {
+    downloadBlob(file, file.name); toast('Sharing is not available on this device/browser, so the PDF was downloaded.', 'info', 7000); return;
+  }
+  // share() needs a fresh tap; if preparing took long, ask for one more tap
+  if (Date.now() - t0 > 2500) {
+    const ok = await modal({ title: 'PDF ready', body: `<p>${esc(file.name)} (${fmtBytes(file.size)})</p><p class="note">Tap the button, then choose <b>Drive</b> (or any app) from the list.</p>`, buttons: [{ label: 'Cancel', value: false }, { label: 'Share / Save to Drive', value: true, primary: true }] });
+    if (!ok) return;
+  }
+  try { await navigator.share({ files: [file], title: file.name }); }
+  catch (e) { if (e && e.name === 'AbortError') return; fail('Share failed', e); }
 }
 
 /* ================================= UI ================================= */
@@ -4078,6 +4390,7 @@ async function panelForms(b) {
 function panelExport(b) {
   const s = LS.get('session');
   b.innerHTML = `<div class="psec"><h3>PDF</h3><button class="btn primary" id="exPdf" style="width:100%"><svg class="i"><use href="#i-save"/></svg>Download ${esc(baseName())}_edited.pdf</button>
+    <button class="btn outline" id="exShare" style="width:100%;margin-top:8px"><svg class="i"><use href="#i-share"/></svg>Share / Save to Google Drive…</button>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="exStrip" ${state.stripMeta ? 'checked' : ''}> Remove hidden metadata (title, author, creator app, XMP) for privacy</label></div>
   <div class="psec"><h3>Compress PDF</h3><div class="row"><select id="cpLvl"><option value="low">Smallest file</option><option value="medium" selected>Balanced</option><option value="high">Better quality</option></select><button class="btn outline" id="cpGo">Compress & download</button></div>
     <div class="note">Pages are saved as images, so text won't be selectable in the compressed copy.</div></div>
@@ -4094,6 +4407,7 @@ function panelExport(b) {
     else { await forgetSession(); toast('Stopped keeping files. The saved copy was deleted from this device.', 'ok'); }
   };
   $('#exPdf', b).onclick = downloadPdf;
+  $('#exShare', b).onclick = sharePdf;
   $('#cpGo', b).onclick = () => compressPdf($('#cpLvl', b).value);
   $('#exImg', b).onclick = () => exportImages($('#exFmt', b).value, +$('#exScale', b).value, $('#exRange', b).value);
 }
@@ -4109,6 +4423,8 @@ function panelSettings(b) {
   <div class="psec"><h3>Appearance</h3><label class="row"><input type="checkbox" id="stTheme" ${s.theme === 'light' ? 'checked' : ''}> Light theme</label></div>
   <div class="psec"><h3>Fonts on this device</h3>${fonts.length ? fonts.map(f => `<div class="row"><span style="flex:1">${esc(f.name)}</span><button class="btn sm danger" data-delfont="${esc(f.id)}">Remove</button></div>`).join('') : '<p class="note">No custom fonts yet. Upload a TTF/OTF (e.g. Noto Sans Devanagari for Hindi).</p>'}
     <button class="btn outline" id="stUpFont">Upload font…</button></div>
+  <div class="psec"><h3>App lock</h3><div id="lockBox"></div></div>
+  <div class="psec"><h3>Works offline</h3><div id="offBox"></div></div>
   <div class="psec"><h3>Privacy</h3><div class="note">Files are processed only in this browser. Nothing is uploaded. If "keep my file" is on, the file, your fonts and a saved signature stay on this device — on a shared phone, use <b>Close file</b> or <b>Clear all local data</b>.</div>
     <div class="row"><button class="btn outline danger" id="stClear">Clear all local data</button></div></div>`;
   $('#stFont', b).onchange = async e => { if (e.target.value === '__upload') { const id = await pickFontFile(); renderPanel(); if (id) $('#stFont').value = id; } };
@@ -4126,6 +4442,8 @@ function panelSettings(b) {
     state.fonts.delete(id); renderPanel(); redrawOverlays();
   });
   $('#stClear', b).onclick = clearAllLocalData;
+  renderLockSettings($('#lockBox', b));
+  renderOfflineSettings($('#offBox', b));
 }
 
 /* ---- Thumbnail interactions: tap = go to page, checkbox = select, grip = drag reorder ---- */
@@ -4275,11 +4593,13 @@ function wireUI() {
   window.addEventListener('dragover', (e) => e.preventDefault());
   window.addEventListener('drop', (e) => {
     e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragover');
+    if (isLocked()) return;
     if (e.dataTransfer && e.dataTransfer.files.length) openFiles(e.dataTransfer.files);
   });
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
+    if (isLocked()) return;
     const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement && document.activeElement.tagName) || document.querySelector('.modal-back');
     const mod = e.ctrlKey || e.metaKey;
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); downloadPdf(); return; }
@@ -4304,16 +4624,18 @@ function wireUI() {
 async function boot() {
   loadSettings();
   wireUI();
+  wireLock();
   renderOptbar(); updateChrome(); wireHub();
+  if (lockEnabled()) showLock();
   if (!LIBS_OK) {
-    $('#empty .hub').innerHTML = '<h1>Libraries could not load</h1><p>PDF Desk needs to download its PDF engines once (from cdn.jsdelivr.net). Check your internet connection and reload. After the first successful load they are cached for offline use.</p><button class="btn primary" id="btnReload">Reload</button>';
+    $('#empty .hub').innerHTML = '<h1>The app files could not load</h1><p>Some of the app\'s own files are missing or were blocked. Check your internet connection and reload once; after that the app works offline.</p><button class="btn primary" id="btnReload">Reload</button>';
     $('#btnReload').onclick = () => location.reload();
     return;
   }
   try { for (const f of await idbFonts('all')) await registerFont(f, false); } catch (e) { console.warn('fonts', e); }
   renderOptbar();
-  resumeLastSession();
-  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  if (!lockEnabled()) resumeLastSession();
+  if ('serviceWorker' in navigator && window.isSecureContext) {
     navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed', err));
   }
 }

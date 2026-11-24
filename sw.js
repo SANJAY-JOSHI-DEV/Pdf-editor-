@@ -1,22 +1,17 @@
-/* PDF Desk service worker: caches the app shell and the pinned CDN libraries only.
-   User PDFs are never fetched over the network, so they are never cached. */
-const CACHE = 'pdfdesk-v6';
-const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
-const LIBS = [
-  'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js',
-  'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js',
-  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
-  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
-  'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
-  'https://cdn.jsdelivr.net/npm/regenerator-runtime@0.13.11/runtime.js',
+/* PDF Desk service worker.
+   Caches ONLY the app itself (page, icons and the bundled libraries in ./vendor). User PDFs are never fetched
+   over the network, so they are never cached here. Everything the app needs is same-origin, so it works offline. */
+const CACHE = 'pdfdesk-v7';   // keep in sync with OFFLINE_CACHE in index.html
+const CORE = [
+  './', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
+  './vendor/runtime.js', './vendor/pdf-lib.min.js', './vendor/fontkit.umd.min.js',
+  './vendor/pdf.min.js', './vendor/pdf.worker.min.js', './vendor/jszip.min.js',
 ];
 
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
     const c = await caches.open(CACHE);
-    // Local shell files: tolerate missing icons so install never fails.
-    await Promise.all(SHELL.map(u => c.add(u).catch(() => {})));
-    await Promise.all(LIBS.map(u => c.add(new Request(u, { mode: 'cors' })).catch(() => {})));
+    await Promise.all(CORE.map(u => c.add(u).catch(() => { })));
     await self.skipWaiting();
   })());
 });
@@ -28,23 +23,30 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  // Versioned CDN libraries never change: cache-first.
-  if (LIBS.includes(url.href)) {
-    e.respondWith(caches.match(req.url).then(hit => hit || fetch(req).then(res => {
-      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req.url, copy)); }
+  if (url.origin !== location.origin) return;            // never touch other sites
+
+  // Bundled libraries / OCR files: never change for a given cache version -> cache first, fill on demand.
+  if (url.pathname.includes('/vendor/')) {
+    e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(res => {
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
       return res;
     })));
     return;
   }
-  // App shell: network-first so updates arrive, cache as offline fallback.
-  if (url.origin === location.origin && (req.mode === 'navigate' || SHELL.some(s => url.pathname.endsWith(s.replace('./', '/')) && s !== './'))) {
-    e.respondWith(fetch(req).then(res => {
+  // The app page and files: network first (so updates arrive), but fall back to the cache quickly when offline/slow.
+  e.respondWith((async () => {
+    try {
+      const res = await withTimeout(fetch(req), req.mode === 'navigate' ? 4000 : 8000);
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req.mode === 'navigate' ? './index.html' : req, copy)); }
       return res;
-    }).catch(() => caches.match(req).then(hit => hit || caches.match('./index.html'))));
-  }
+    } catch (err) {
+      return (await caches.match(req, { ignoreSearch: true })) || (req.mode === 'navigate' ? await caches.match('./index.html') : undefined) || Response.error();
+    }
+  })());
 });
