@@ -7,7 +7,7 @@
 <meta name="description" content="Private, in-browser PDF editor. Files never leave your device.">
 <title>PDF Desk</title>
 <!-- Strict CSP: scripts only from this page (hash-pinned at build time) and the pinned CDN. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'sha256-IAaP0Qo9Wod4+g2DLJI4sNohmIhmlW3kC2uLtczxYGU='; worker-src 'self' blob: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'sha256-FdgSNcZPIZ/DJ5HFK4Uxh3bTtl1GUDchNh2mpm3WLnI='; worker-src 'self' blob: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b8cff'/%3E%3Cpath d='M20 12h18l10 10v30H20z' fill='%23fff'/%3E%3Cpath d='M38 12v10h10' fill='%23cddaff'/%3E%3Cpath d='M25 44l14-14 4 4-14 14h-4z' fill='%235b8cff'/%3E%3C/svg%3E">
@@ -97,11 +97,32 @@ textarea{resize:vertical}
 .page .sel-rect{position:absolute;border:2px dashed var(--accent);background:rgba(91,140,255,.12);pointer-events:none}
 .page .sel-rect.cover{border-color:var(--warn);background:rgba(245,165,36,.15)}
 .page .sel-rect.wm{border-color:var(--danger);background:rgba(255,93,93,.12)}
-#empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px}
+#empty{position:absolute;inset:0;overflow-y:auto;padding:20px 14px}
+.hub{max-width:760px;margin:0 auto;text-align:center}
+.hub h1{font-size:22px;margin:8px 0 4px}
+.hub .sub{color:var(--muted);margin:4px 0 14px;font-size:13px}
+.hubgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.hubcard,.tile{display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 10px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-align:center;min-height:96px;justify-content:center}
+.hubcard:hover,.tile:hover{border-color:var(--accent)}
+.hubcard svg.i{width:28px;height:28px;color:var(--accent)}
+.hubcard small,.tile small{color:var(--muted);font-size:12px}
+.tile:disabled{opacity:.4}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.btn.big{width:100%;height:48px;font-size:15px;margin:6px 0}
+.cands{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.cand{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);cursor:pointer}
+.cand input{width:22px;height:22px;flex:none;accent-color:var(--accent)}
+.cand .cimg{width:110px;height:56px;flex:none;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:6px;overflow:hidden}
+.cand .cimg img{max-width:100%;max-height:100%}
+.cand .ctx{display:flex;flex-direction:column;min-width:0}
+.cand .ctx b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cand .ctx small{color:var(--muted)}
+details.more{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
+details.more summary{cursor:pointer;color:var(--muted);padding:6px 0}
 #empty .card{max-width:440px;text-align:center;border:2px dashed var(--line);border-radius:16px;padding:32px 22px;background:var(--panel)}
 #empty h1{font-size:20px;margin:6px 0 4px}
 #empty p{color:var(--muted);margin:6px 0 16px}
-body.dragover #empty .card,body.dragover #viewer{outline:3px dashed var(--accent);outline-offset:-8px}
+body.dragover #viewer{outline:3px dashed var(--accent);outline-offset:-8px}
 
 /* ---------- Right panel / bottom sheet ---------- */
 #panel{width:340px;flex:none;background:var(--panel);border-left:1px solid var(--line);display:none;flex-direction:column;min-height:0}
@@ -221,25 +242,19 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
 
 <nav id="toolbar" aria-label="Tools">
   <button class="btn tool active" data-tool="select"><svg class="i"><use href="#i-select"/></svg>Select</button>
-  <button class="btn tool" data-tool="text"><svg class="i"><use href="#i-text"/></svg>Text</button>
-  <button class="btn tool" data-tool="pen"><svg class="i"><use href="#i-pen"/></svg>Pen</button>
+  <button class="btn tool" data-tool="text"><svg class="i"><use href="#i-text"/></svg>Add text</button>
+  <button class="btn tool" data-tool="replace"><svg class="i"><use href="#i-replace"/></svg>Edit text</button>
+  <button class="btn tool" data-tool="pen"><svg class="i"><use href="#i-pen"/></svg>Draw</button>
   <button class="btn tool" data-tool="highlight"><svg class="i"><use href="#i-hl"/></svg>Highlight</button>
-  <button class="btn tool" data-tool="rect"><svg class="i"><use href="#i-rect"/></svg>Rect</button>
-  <button class="btn tool" data-tool="ellipse"><svg class="i"><use href="#i-ellipse"/></svg>Ellipse</button>
-  <button class="btn tool" data-tool="arrow"><svg class="i"><use href="#i-arrow"/></svg>Arrow</button>
-  <button class="btn tool" data-tool="line"><svg class="i"><use href="#i-line"/></svg>Line</button>
-  <button class="btn tool" data-tool="whiteout"><svg class="i"><use href="#i-white"/></svg>Whiteout</button>
+  <button class="btn tool" data-tool="rect" data-group="rect,ellipse,arrow,line"><svg class="i"><use href="#i-rect"/></svg>Shapes</button>
+  <button class="btn tool" data-tool="whiteout"><svg class="i"><use href="#i-white"/></svg>Eraser</button>
   <button class="btn tool" data-tool="image"><svg class="i"><use href="#i-image"/></svg>Image</button>
   <button class="btn tool" data-tool="sign"><svg class="i"><use href="#i-sign"/></svg>Sign</button>
-  <button class="btn tool" data-tool="replace"><svg class="i"><use href="#i-replace"/></svg>Replace</button>
-  <button class="btn tool" data-tool="field"><svg class="i"><use href="#i-field"/></svg>Field</button>
   <span class="sep"></span>
   <button class="btn tool" data-panel="watermark"><svg class="i"><use href="#i-wm"/></svg>Watermark</button>
-  <button class="btn tool" data-panel="find"><svg class="i"><use href="#i-find"/></svg>Find</button>
+  <button class="btn tool" data-panel="convert"><svg class="i"><use href="#i-export"/></svg>Convert</button>
   <button class="btn tool" data-panel="pages"><svg class="i"><use href="#i-pages"/></svg>Pages</button>
-  <button class="btn tool" data-panel="forms"><svg class="i"><use href="#i-form"/></svg>Forms</button>
-  <button class="btn tool" data-panel="export"><svg class="i"><use href="#i-export"/></svg>Export</button>
-  <button class="btn tool" data-panel="settings"><svg class="i"><use href="#i-gear"/></svg>Settings</button>
+  <button class="btn tool" data-panel="more"><svg class="i"><use href="#i-menu"/></svg>More</button>
 </nav>
 
 <div id="optbar"></div>
@@ -260,11 +275,21 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
   <section id="viewer">
     <div id="pages"></div>
     <div id="empty">
-      <div class="card">
-        <svg class="i" style="width:44px;height:44px;color:var(--accent)"><use href="#i-open"/></svg>
-        <h1>Open a PDF</h1>
-        <p>Pick a PDF (or photos/images to turn into a PDF), or drop it here. Everything runs in this browser — your file is never uploaded.</p>
-        <button class="btn primary" id="btnOpen2">Choose PDF</button>
+      <div class="hub">
+        <h1>What do you want to do?</h1>
+        <p class="sub">Everything runs on your phone/computer — files are never uploaded.</p>
+        <div class="hubgrid">
+          <button class="hubcard" data-hub="edit"><svg class="i"><use href="#i-edit"/></svg><b>Edit PDF</b><small>text, draw, sign</small></button>
+          <button class="hubcard" data-hub="remove"><svg class="i"><use href="#i-wm"/></svg><b>Remove watermark</b><small>find & delete</small></button>
+          <button class="hubcard" data-hub="add"><svg class="i"><use href="#i-drop"/></svg><b>Add watermark</b><small>text or logo</small></button>
+          <button class="hubcard" data-hub="convert"><svg class="i"><use href="#i-text"/></svg><b>PDF → Text / Word</b><small>copy everything</small></button>
+          <button class="hubcard" data-hub="text2pdf"><svg class="i"><use href="#i-blank"/></svg><b>Text → PDF</b><small>type or paste</small></button>
+          <button class="hubcard" data-hub="photos"><svg class="i"><use href="#i-image"/></svg><b>Photos → PDF</b><small>JPG, PNG</small></button>
+          <button class="hubcard" data-hub="merge"><svg class="i"><use href="#i-dup"/></svg><b>Merge PDFs</b><small>pick several</small></button>
+          <button class="hubcard" data-hub="compress"><svg class="i"><use href="#i-save"/></svg><b>Compress PDF</b><small>smaller size</small></button>
+          <button class="hubcard" data-hub="sign"><svg class="i"><use href="#i-sign"/></svg><b>Sign PDF</b><small>draw signature</small></button>
+        </div>
+        <p class="sub">Or drop a PDF anywhere on this page.</p>
       </div>
     </div>
   </section>
@@ -346,7 +371,7 @@ function modal({ title, body, buttons = [{ label: 'OK', value: true, primary: tr
       btn.className = 'btn ' + (b.primary ? 'primary' : 'outline') + (b.danger ? ' danger' : '');
       btn.textContent = b.label;
       btn.onclick = () => {
-        if (b.collect && collect) { const r = collect(back); if (r === undefined) return; done(r); }
+        if (b.collect && collect) { const r = collect(back, b.value); if (r === undefined) return; done(r); }
         else done(b.value);
       };
       $('.mf', back).appendChild(btn);
@@ -437,7 +462,7 @@ const state = {
   opts: {},             // per-tool options, filled by initOpts()
   cover: { color: '#ffffff', auto: true, blur: false, all: false },
   stamp: { kind: 'text', text: 'Your Company', font: 'Helvetica', bold: true, size: 60, color: '#1a3fbf', opacity: 0.2, ang: -45, pos: 'middle-center', tile: false, scope: 'all', scale: 40, imageId: null },
-  wm: { tab: 'add', text: '', scope: 'all', range: '', annots: true, tagged: true, regionAll: false },
+  wm: { tab: 'remove', text: '', scope: 'all', range: '', annots: true, tagged: true, regionAll: false },
   panel: null,
 };
 let REV = 1; // global counter used to version page overlays (never reused)
@@ -764,6 +789,7 @@ async function openMainFile(file) {
   toast(`Opened ${file.name} — ${state.pages.length} page${state.pages.length > 1 ? 's' : ''}${state.readOnly ? ' (view only)' : ''}`, 'ok');
   await offerRestore(src);
   detectScanned(src);
+  runAfterOpen();
 }
 
 async function offerRestore(src) {
@@ -787,7 +813,7 @@ async function detectScanned(src) {
     const doc = await getPdfJs(src);
     const n = Math.min(3, doc.numPages); let empty = 0;
     for (let i = 1; i <= n; i++) { const tc = await (await doc.getPage(i)).getTextContent(); if (!tc.items.some(it => it.str && it.str.trim())) empty++; }
-    if (empty === n) toast('This looks like a scanned/image-only PDF. Text-based watermark removal and Replace text will not work; use Cover mode or Whiteout instead.', 'warn', 10000);
+    if (empty === n) toast('Scanned (photo) PDF: use Watermark → Cover / Eraser to hide things, and Convert → Scan/OCR to get its text.', 'info', 9000);
   } catch (e) { /* non-critical */ }
 }
 
@@ -1277,14 +1303,16 @@ function pickFontFile() {
 const DRAW_TOOLS = new Set(['pen', 'highlight', 'line', 'arrow', 'rect', 'ellipse', 'whiteout', 'field', 'wmregion', 'cover']);
 const TAP_TOOLS = new Set(['text', 'replace', 'eyedrop']);
 const TOOL_HINTS = {
-  select: 'Tap an object to select it. Drag to move, drag a corner to resize. Double-click text to edit.',
-  text: 'Tap on a page to add a text box.',
-  replace: 'Tap existing text to cover it and type a replacement (cover + new text, not true editing).',
+  select: 'Tap anything you added to move, resize or delete it.',
+  text: 'Tap where you want to write.',
+  replace: 'Tap any line of the PDF to change its text.',
   image: 'Choose a PNG/JPG to place on the current page.',
   sign: 'Draw your signature, then place it on the current page.',
   field: 'Drag a rectangle to add a fillable text field.',
-  wmregion: 'Drag a rectangle over the watermark to remove the content inside it.',
-  cover: 'Drag a rectangle over the watermark to paint a cover patch.',
+  wmregion: 'Drag a box over the watermark — everything inside is deleted.',
+  whiteout: 'Drag over anything to erase it with a white box.',
+  pen: 'Draw with your finger or mouse.',
+  cover: 'Drag a box over the area to paint over it.',
   eyedrop: 'Tap the page to pick a cover color.',
 };
 let drag = null;
@@ -1296,7 +1324,7 @@ function setTool(t) {
   if (t !== 'eyedrop') prevTool = state.tool;
   state.tool = t;
   if (t !== 'select') state.sel = null;
-  $$('#toolbar .tool[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+  $$('#toolbar .tool[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === t || (b.dataset.group || '').split(',').includes(t)));
   updatePageClasses(); renderOptbar(); redrawOverlays();
 }
 function updatePageClasses() {
@@ -2031,15 +2059,58 @@ function processContent(env, str, res, baseCtm) {
   const fonts = L(res, 'Font'), xobjs = L(res, 'XObject'), props = L(res, 'Properties');
   const nums = (args) => args.map(a => typeof a === 'number' ? a : 0);
   const addPt = (x, y) => { const [px, py] = apply(gs.ctm, x, y); pathBox = union(pathBox, { x1: px, y1: py, x2: px, y2: py }); };
+  // Smart detection: group the page into "things" (text blocks, pictures, drawings) with a stable key,
+  // so the same watermark can be recognised on every page and removed by key.
+  const smart = mode === 'scan' || mode === 'keys';
+  const entries = [];
+  const qStack = [];
+  let blk = null, pend = null;
+  gs.alpha = 1; gs.tr = 0;
+  const toQ = (b) => { if (b) for (const f of qStack) f.box = union(f.box, b); };
+  const isDiag = (ang) => ang != null && Math.abs(Math.sin(2 * ang)) > 0.25;
+  const textKey = (e) => 'T:' + (normText(e.text) || 'raw:' + Array.from(e.raw.slice(0, 48), c => c.charCodeAt(0).toString(16)).join(''));
+  const flushPend = () => { if (pend) { pend.key = textKey(pend); entries.push(pend); pend = null; } };
+  const egs = L(res, 'ExtGState');
 
   for (let i = 0; i < ops.length; i++) {
     const { op, args } = ops[i];
     const a = nums(args);
     switch (op) {
-      case 'q': gstack.push({ ...gs }); break;
-      case 'Q': if (gstack.length) gs = gstack.pop(); break;
+      case 'q': gstack.push({ ...gs }); if (smart) qStack.push({ i, text: false, doo: false, box: null }); break;
+      case 'Q': {
+        if (gstack.length) gs = gstack.pop();
+        const f = smart && qStack.pop();
+        if (f) {
+          if (f.text && qStack.length) qStack[qStack.length - 1].text = true;
+          if (!f.text && !f.doo && f.box && i - f.i > 2) {
+            let h = 0; const raw = str.slice(ops[f.i].s, ops[i].e);
+            for (let k = 0; k < raw.length; k++) h = (h * 31 + raw.charCodeAt(k)) | 0;
+            entries.push({ kind: 'shape', key: 'G:' + raw.length + ':' + h, s: f.i, e: i, box: f.box, alpha: gs.alpha });
+          }
+        }
+        break;
+      }
+      case 'gs': {
+        let d; try { d = egs && egs.lookup(PN(args[0] && args[0].name)); } catch (e) { /* ignore */ }
+        if (d instanceof PDFDict) { const ca = d.lookup(PN('ca')), CA = d.lookup(PN('CA')); gs.alpha = Math.min(ca ? numOf(ca) : 1, CA ? numOf(CA) : 1); }
+        break;
+      }
+      case 'Tr': gs.tr = a[0]; break;
+      case 'ET':
+        if (smart && blk) {
+          const e = { kind: 'text', s: blk.i, e: i, text: blk.text, raw: blk.raw, box: blk.box, alpha: blk.alpha, angle: blk.angle, fs: blk.fs };
+          if (!blk.invisible && (e.text.trim() || e.raw)) {
+            if (isDiag(e.angle)) {
+              if (pend && Math.abs(pend.angle - e.angle) < 0.05 && Math.abs(pend.fs - e.fs) < 0.5) {
+                Object.assign(pend, { e: i, text: pend.text + e.text, raw: pend.raw + e.raw, box: union(pend.box, e.box), alpha: Math.min(pend.alpha, e.alpha) });
+              } else { flushPend(); pend = e; }
+            } else { flushPend(); e.key = textKey(e); entries.push(e); }
+          }
+          blk = null;
+        }
+        break;
       case 'cm': if (a.length >= 6) gs.ctm = mmul(a.slice(0, 6), gs.ctm); break;
-      case 'BT': tm = tlm = IDM; break;
+      case 'BT': tm = tlm = IDM; if (smart) blk = { i, text: '', raw: '', box: null, alpha: gs.alpha, angle: null, fs: gs.fs, invisible: gs.tr === 3 }; break;
       case 'Tf': {
         const nm = args[0] && args[0].name; let fd;
         try { fd = fonts && fonts.lookup(PN(nm)); } catch (e) { /* ignore */ }
@@ -2068,6 +2139,14 @@ function processContent(env, str, res, baseCtm) {
         }
         shows.push({ i, text, box });
         env.stats.textOps++;
+        if (smart) {
+          for (const f of qStack) f.text = true;
+          if (blk) {
+            blk.text += text; blk.raw += items.filter(x => typeof x === 'string').join(''); blk.box = union(blk.box, box);
+            blk.alpha = Math.min(blk.alpha, gs.alpha); blk.invisible = blk.invisible && gs.tr === 3;
+            if (blk.angle == null) { const t = mmul(tm, gs.ctm); blk.angle = Math.atan2(t[1], t[0]); blk.fs = Math.round(gs.fs * Math.hypot(t[0], t[1]) / Math.max(1e-6, Math.hypot(tm[0], tm[1])) * 10) / 10; }
+          }
+        }
         break;
       }
       case 'Do': {
@@ -2077,11 +2156,21 @@ function processContent(env, str, res, baseCtm) {
         if (!isStream(xo)) break;
         const st = nameOf(xo.dict.lookup(PN('Subtype')));
         if (st === 'Image') {
+          if (smart) {
+            const b = boxOf(gs.ctm, 0, 0, 1, 1); toQ(b); for (const f of qStack) f.doo = true;
+            const sig = numOf(xo.dict.lookup(PN('Width'))) + 'x' + numOf(xo.dict.lookup(PN('Height'))) + '#' + (xo.contents ? xo.contents.length : 0);
+            if (area(b) < 0.85 * env.pageArea) entries.push({ kind: 'image', key: 'I:' + sig, s: i, e: i, box: b, alpha: gs.alpha, soft: !!xo.dict.lookup(PN('SMask')), rel: area(b) / env.pageArea });
+          }
           if (mode === 'region' && !env.opts.textOnly) { const b = boxOf(gs.ctm, 0, 0, 1, 1); if (centerIn(b, rect) && fracIn(b, rect) >= 0.3) { remove.add(i); env.stats.images++; } }
         } else if (st === 'Form') {
           const fm = xo.dict.lookup(PN('Matrix'));
           const ctm2 = mmul(fm instanceof PDFArray ? fm.asArray().map(numOf) : IDM, gs.ctm);
           const bb = xo.dict.lookup(PN('BBox'));
+          if (smart && bb instanceof PDFArray) {
+            const v = bb.asArray().map(numOf), b = boxOf(ctm2, v[0], v[1], v[2], v[3]);
+            toQ(b); for (const f of qStack) f.doo = true;
+            if (area(b) < 0.85 * env.pageArea) entries.push({ rel: area(b) / env.pageArea, kind: 'graphic', key: 'F:' + v.map(n => Math.round(n)).join(',') + '#' + (xo.contents ? xo.contents.length : 0), s: i, e: i, box: b, alpha: gs.alpha });
+          }
           if (mode === 'region' && !env.opts.textOnly && bb instanceof PDFArray) {
             const [x1, y1, x2, y2] = bb.asArray().map(numOf);
             const b = boxOf(ctm2, x1, y1, x2, y2);
@@ -2096,6 +2185,7 @@ function processContent(env, str, res, baseCtm) {
         break;
       }
       case 'BI':
+        if (smart) { const b = boxOf(gs.ctm, 0, 0, 1, 1); toQ(b); if (area(b) < 0.85 * env.pageArea) entries.push({ kind: 'image', key: 'BI:' + (ops[i].e - ops[i].s), s: i, e: i, box: b, alpha: gs.alpha }); }
         if (mode === 'region' && !env.opts.textOnly) { const b = boxOf(gs.ctm, 0, 0, 1, 1); if (centerIn(b, rect) && fracIn(b, rect) >= 0.3) { remove.add(i); env.stats.images++; } }
         break;
       case 'm': case 'l': if (pathStart < 0) pathStart = i; addPt(a[0], a[1]); break;
@@ -2104,15 +2194,17 @@ function processContent(env, str, res, baseCtm) {
       case 're': if (pathStart < 0) pathStart = i; addPt(a[0], a[1]); addPt(a[0] + a[2], a[1] + a[3]); break;
       case 'W': case 'W*': clip = true; break;
       case 'BMC': case 'BDC':
-        mc.push({ i, wm: op === 'BDC' && mode === 'text' && env.opts.tagged && isWatermarkTag(env, args, props) });
+        mc.push({ i, wm: op === 'BDC' && mode === 'text' && env.opts.tagged && isWatermarkTag(env, args, props), smartWm: smart && op === 'BDC' && isWatermarkTag({ ...env, opts: { queries: [] } }, args, props) });
         break;
       case 'EMC': {
         const m = mc.pop();
         if (m && m.wm) { for (let k = m.i; k <= i; k++) remove.add(k); env.stats.tagged++; }
+        if (m && m.smartWm) entries.push({ kind: 'tagged', key: 'M:watermark', s: m.i, e: i, box: null, alpha: 1 });
         break;
       }
       default:
         if (PAINT_OPS.has(op)) {
+          if (smart && !clip && op !== 'n') toQ(pathBox);
           if (mode === 'region' && !env.opts.textOnly && pathStart >= 0 && !clip && op !== 'n' && pathBox && fracIn(pathBox, rect) >= 0.9) {
             for (let k = pathStart; k <= i; k++) remove.add(k);
             env.stats.paths++;
@@ -2134,6 +2226,11 @@ function processContent(env, str, res, baseCtm) {
     }
   } else if (mode === 'region') {
     for (const s of shows) if (s.box && centerIn(s.box, rect)) remove.add(s.i);
+  }
+  if (smart) {
+    flushPend();
+    if (mode === 'scan') env.entries.push(...entries);
+    else for (const e of entries) if (env.opts.keys.has(e.key)) { for (let k = e.s; k <= e.e; k++) remove.add(k); env.stats.matches++; }
   }
   const text = shows.map(s => s.text).join(' ');
   if (!remove.size) return { out: null, text };
@@ -2166,7 +2263,14 @@ function processAnnots(env, page) {
     if (!(a instanceof PDFDict)) { kept.push(ref); continue; }
     const st = nameOf(a.lookup(PN('Subtype')));
     let rm = false;
-    if (st !== 'Widget' && st !== 'Popup') {
+    if (st !== 'Widget' && st !== 'Popup' && st !== 'Link' && (mode === 'scan' || mode === 'keys')) {
+      const r = a.lookup(PN('Rect'));
+      const key = 'A:' + st + ':' + normText(textOf(a.lookup(PN('Contents')))).slice(0, 30);
+      let box = null;
+      if (r instanceof PDFArray) { const [x1, y1, x2, y2] = r.asArray().map(v => numOf(ctx.lookup(v))); box = { x1: Math.min(x1, x2), y1: Math.min(y1, y2), x2: Math.max(x1, x2), y2: Math.max(y1, y2) }; }
+      if (mode === 'scan') env.entries.push({ kind: 'annot', key, sub: st, box, alpha: 1, text: textOf(a.lookup(PN('Contents'))) });
+      else if (env.opts.keys.has(key)) rm = true;
+    } else if (st !== 'Widget' && st !== 'Popup') {
       if (mode === 'text') {
         if (env.opts.annots && (st === 'Watermark' || st === 'Stamp')) rm = true;
         else if (env.opts.queries.length) {
@@ -2205,6 +2309,7 @@ function processAnnots(env, page) {
 }
 
 function processPage(env, page) {
+  try { const mb = page.getMediaBox(); env.pageArea = Math.abs(mb.width * mb.height) || 1e12; } catch (e) { env.pageArea = 1e12; }
   const contents = page.node.Contents();
   if (contents) {
     const ctx = env.doc.context;
@@ -2261,7 +2366,7 @@ async function runWatermark(targets, label, opts) {
         try { processPage(env, pg); } catch (e) { stats.errors++; console.warn('watermark page', e); }
       }
       if (env.changed) {
-        busyText('Saving cleaned pages…'); await yieldUI();
+        busyText('Saving…'); await yieldUI();
         const bytes = await doc.save();
         const ns = await addSource(bytes, src.name, { info: src.info });
         for (const pm of pms) remap.set(pm.id, ns.id);
@@ -2746,13 +2851,17 @@ async function openFiles(files) {
   files = [...files];
   if (!files.length) return;
   if (files.every(isImageFile)) {
-    try { openMainFile(await imagesToPdfFile(files)); } catch (e) { fail('Image conversion failed', e); }
+    try { await openMainFile(await imagesToPdfFile(files)); } catch (e) { fail('Image conversion failed', e); }
     return;
   }
-  const pdf = files.find(f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name));
-  if (!pdf) { toast('Choose a PDF or PNG/JPG images.', 'warn'); return; }
-  if (files.length > 1) toast('Opened the first PDF. Use Pages → Merge to add more.', 'warn');
-  openMainFile(pdf);
+  const pdfs = files.filter(f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name));
+  if (!pdfs.length) { toast('Choose a PDF or PNG/JPG images.', 'warn'); return; }
+  await openMainFile(pdfs[0]);
+  for (const f of pdfs.slice(1)) {
+    const src = await loadPdfFile(f, { forMerge: true });
+    if (src) commit(`Merge ${f.name}`, () => { state.pages.push(...pageModelsFor(src, src.info.map((_, i) => i))); });
+  }
+  if (pdfs.length > 1) toast(`${pdfs.length} PDFs joined into one. Tap Download to save.`, 'ok');
 }
 
 /* Find text across all pages and optionally highlight every match. */
@@ -2914,6 +3023,492 @@ async function compressPdf(level) {
   } catch (e) { fail('Compress failed', e); } finally { busy(false); }
 }
 
+/* ==================== Automatic watermark detection ==================== */
+/* PDF user space -> displayed-page coordinates (inverse of viewToPdf). */
+function pdfToView(px, py, R, box) {
+  const W = box.width, H = box.height, ux = px - box.x, uy = H - (py - box.y);
+  switch (R) { case 90: return [H - uy, ux]; case 180: return [W - ux, H - uy]; case 270: return [uy, W - ux]; default: return [ux, uy]; }
+}
+function boxToView(b, R, crop) {
+  const a = pdfToView(b.x1, b.y1, R, crop), c = pdfToView(b.x2, b.y2, R, crop);
+  return { x: Math.min(a[0], c[0]), y: Math.min(a[1], c[1]), w: Math.abs(a[0] - c[0]), h: Math.abs(a[1] - c[1]) };
+}
+const KIND_LABEL = { text: 'Text', image: 'Picture / logo', graphic: 'Graphic', shape: 'Drawing', annot: 'Stamp', tagged: 'Marked watermark' };
+
+/** Scans every page and returns watermark candidates (things that repeat, are diagonal or faded). */
+async function detectWatermarks() {
+  const N = state.pages.length;
+  const agg = new Map();
+  busy(true, 'Looking for watermarks…');
+  try {
+    const bySrc = new Map();
+    state.pages.forEach(p => { if (!bySrc.has(p.src)) bySrc.set(p.src, []); bySrc.get(p.src).push(p); });
+    let n = 0;
+    for (const [srcId, pms] of bySrc) {
+      const doc = await getLibDoc(state.sources.get(srcId));
+      const pages = doc.getPages(), fontCache = new Map();
+      for (const pm of pms) {
+        if (++n % 5 === 0) { busyText(`Checking page ${n}/${N}…`); await yieldUI(); }
+        const env = { doc, opts: { mode: 'scan' }, fontCache, visited: new Set(), stats: { matches: 0, ops: 0, images: 0, forms: 0, paths: 0, annots: 0, tagged: 0, textOps: 0, errors: 0 }, entries: [], changed: false };
+        const pg = pages[pm.idx];
+        try { processPage(env, pg); } catch (e) { console.warn('scan', e); continue; }
+        const crop = pg.getCropBox(), { R } = pview(pm), seen = new Set();
+        for (const e of env.entries) {
+          let c = agg.get(e.key);
+          if (!c) agg.set(e.key, c = { key: e.key, kind: e.kind, text: e.text || '', sub: e.sub, pages: new Set(), diag: false, alpha: 1, sample: null, count: 0 });
+          c.count++;
+          if (!seen.has(e.key)) { seen.add(e.key); c.pages.add(pm.id); }
+          if (e.angle != null && Math.abs(Math.sin(2 * e.angle)) > 0.25) c.diag = true;
+          c.alpha = Math.min(c.alpha, e.alpha == null ? 1 : e.alpha);
+          if (e.soft) c.soft = true;
+          if (e.rel) c.rel = Math.max(c.rel || 0, e.rel);
+          if (!c.sample && e.box) c.sample = { pm, box: boxToView(e.box, R, crop) };
+        }
+      }
+    }
+    const minPages = N >= 2 ? Math.max(2, Math.ceil(N * 0.5)) : 1;
+    const out = [];
+    for (const c of agg.values()) {
+      const repeated = c.pages.size >= minPages && N >= 2;
+      const faded = c.alpha < 0.95;
+      let score = 0;
+      if (c.kind === 'tagged') score = 100;
+      else if (c.kind === 'annot') score = (c.sub === 'Watermark' || c.sub === 'Stamp') ? 90 : repeated ? 40 : 0;
+      else {
+        if (c.diag) score += 50;
+        if (faded) score += 30;
+        if (repeated) score += 30;
+        if ((c.kind === 'image' || c.kind === 'graphic') && (c.rel || 0) > 0.12) score += 25; // big picture across the page = typical watermark
+        if (c.soft) score += 10; // transparent PNG
+        if (c.kind === 'text' && !c.diag && !faded && repeated) score -= 10; // probably a header/footer
+        if (c.kind === 'text' && normText(c.text).length < 2 && !c.diag) score = 0;
+        if (c.kind === 'shape' && !repeated && !faded) score = 0;
+      }
+      if (score >= 30) out.push({ ...c, score, repeated, faded, pageCount: c.pages.size, likely: score >= 60 || c.kind === 'tagged' });
+    }
+    out.sort((a, b) => b.score - a.score || b.pageCount - a.pageCount);
+    for (const c of out.slice(0, 40)) c.preview = await previewOf(c);
+    return out.slice(0, 40);
+  } finally { busy(false); }
+}
+async function previewOf(c) {
+  if (!c.sample || !c.sample.box) return null;
+  try {
+    const { canvas, k } = await pageRaster(c.sample.pm);
+    const pad = 6, b = c.sample.box;
+    const sx = Math.max(0, (b.x - pad) * k), sy = Math.max(0, (b.y - pad) * k);
+    const sw = Math.min(canvas.width - sx, (b.w + 2 * pad) * k), sh = Math.min(canvas.height - sy, (b.h + 2 * pad) * k);
+    if (sw < 2 || sh < 2) return null;
+    const s = Math.min(1, 260 / sw, 110 / sh);
+    const t = document.createElement('canvas'); t.width = Math.max(1, Math.round(sw * s)); t.height = Math.max(1, Math.round(sh * s));
+    const ctx = t.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, t.width, t.height);
+    ctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, t.width, t.height);
+    // Faint watermarks are nearly white: stretch contrast so the thumbnail is recognisable.
+    const img = ctx.getImageData(0, 0, t.width, t.height), d = img.data;
+    let mn = 255; for (let i = 0; i < d.length; i += 4) mn = Math.min(mn, d[i], d[i + 1], d[i + 2]);
+    if (mn > 20 && mn < 250) { const f = 255 / (255 - mn); for (let i = 0; i < d.length; i += 4) for (let j = 0; j < 3; j++) d[i + j] = 255 - (255 - d[i + j]) * f; ctx.putImageData(img, 0, 0); }
+    return t.toDataURL('image/png');
+  } catch (e) { return null; }
+}
+function describeCandidate(c, N) {
+  const what = c.kind === 'text' ? `"${c.text.trim().slice(0, 40) || 'text'}"` : KIND_LABEL[c.kind] || 'Item';
+  const tags = [];
+  if (c.diag) tags.push('tilted');
+  if (c.faded) tags.push('faded');
+  tags.push(N > 1 ? `on ${c.pageCount} of ${N} pages` : 'on this page');
+  return { what, tags: tags.join(' · ') };
+}
+async function removeCandidates(keys) {
+  if (!keys.length) { toast('Pehle kam se kam ek item tick kijiye.', 'warn'); return false; }
+  const set = new Set(keys);
+  const stats = await runWatermark(state.pages.slice(), 'Remove watermark', { mode: 'keys', keys: set });
+  if (stats && stats.applied) { toast('Watermark hata diya ✓  (galti ho to Undo dabaiye)', 'ok', 6000); return true; }
+  if (stats) toast('Kuch hataya nahi ja saka. "Select area" ya "Cover" try kijiye.', 'warn', 7000);
+  return false;
+}
+
+/* ============================== Convert ============================== */
+/* ---- PDF -> text with real line/paragraph layout (keeps every Unicode symbol pdf.js can map) ---- */
+const BAD_CHARS = /[\u0000-\u0008\uFFFD\uE000-\uF8FF]/;
+async function pageLines(p) {
+  const pg = await getPdfPage(p.src, p.idx);
+  const vp = pg.getViewport({ scale: 1, rotation: pview(p).R });
+  const tc = await pg.getTextContent({ includeMarkedContent: false, disableNormalization: false });
+  const items = [];
+  for (const it of tc.items) {
+    if (!it.str) continue;
+    const t = it.transform, fh = Math.hypot(t[2], t[3]) || Math.hypot(t[0], t[1]) || 10;
+    const [x, y] = vp.convertToViewportPoint(t[4], t[5]);
+    const [x2] = vp.convertToViewportPoint(t[4] + (t[0] / (Math.hypot(t[0], t[1]) || 1)) * it.width, t[5] + (t[1] / (Math.hypot(t[0], t[1]) || 1)) * it.width);
+    items.push({ s: it.str, x: Math.min(x, x2), x2: Math.max(x, x2), y, fh });
+  }
+  items.sort((a, b) => a.y - b.y || a.x - b.x);
+  const lines = [];
+  for (const it of items) {
+    const ln = lines.find(l => Math.abs(l.y - it.y) < Math.max(2, Math.min(l.fh, it.fh) * 0.5));
+    if (ln) { ln.items.push(it); ln.fh = Math.max(ln.fh, it.fh); } else lines.push({ y: it.y, fh: it.fh, items: [it] });
+  }
+  lines.sort((a, b) => a.y - b.y);
+  const out = [];
+  let prevY = null, prevFh = 0;
+  for (const l of lines) {
+    l.items.sort((a, b) => a.x - b.x);
+    let s = '', end = null;
+    for (const it of l.items) {
+      if (end != null && it.x - end > it.fh * 0.22 && !/\s$/.test(s) && !/^\s/.test(it.s)) s += it.x - end > it.fh * 2.5 ? '    ' : ' ';
+      s += it.s; end = Math.max(end ?? -Infinity, it.x2);
+    }
+    out.push({ y: l.y, fh: l.fh, gap: prevY != null && l.y - prevY > Math.max(prevFh, l.fh) * 1.9, s: s.replace(/\s+$/, ''), bad: BAD_CHARS.test(s) });
+    prevY = l.y; prevFh = l.fh;
+  }
+  return out;
+}
+const linesToText = (lines) => lines.map(l => (l.gap ? '\n' : '') + l.s.replace(/[\u0000-\u0008]/g, '')).join('\n');
+async function pageTextLayout(p) { return linesToText(await pageLines(p)); }
+async function pdfToText(withMarkers, fixWithOcr) {
+  if (fixWithOcr) return hybridText();
+  const parts = [];
+  busy(true, 'Reading text…');
+  try {
+    for (let i = 0; i < state.pages.length; i++) {
+      if (i % 5 === 0) { busyText(`Reading page ${i + 1}/${state.pages.length}…`); await yieldUI(); }
+      const ls = await pageLines(state.pages[i]);
+      if (ls.some(l => l.bad)) convState.badLines = true;
+      parts.push((withMarkers ? `===== Page ${i + 1} =====\n` : '') + linesToText(ls));
+    }
+  } finally { busy(false); }
+  return parts.join('\n\n');
+}
+/* Text that is mostly private-use / control characters means the PDF font has no proper Unicode map. */
+function looksGarbled(t) {
+  if (/[\uFFFD\uE000-\uF8FF]/.test(t) || convState.badLines) return true;
+  const s = t.replace(/\s/g, ''); if (s.length < 20) return s.length === 0;
+  const bad = (s.match(/[-\u0000-\u001F�]/g) || []).length;
+  return bad / s.length > 0.15;
+}
+
+/* ---- OCR (Tesseract, loaded only when needed) ---- */
+let tessLoading = null;
+function loadTesseract() {
+  if (window.Tesseract) return Promise.resolve();
+  if (!tessLoading) tessLoading = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+    s.integrity = 'sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F';
+    s.crossOrigin = 'anonymous';
+    s.onload = () => res(); s.onerror = () => { tessLoading = null; rej(new Error('OCR engine could not load (internet needed the first time)')); };
+    document.head.appendChild(s);
+  });
+  return tessLoading;
+}
+async function ocrPdf(langs) {
+  busy(true, 'Loading OCR engine (first time ~10–20 MB)…');
+  let worker;
+  try {
+    await loadTesseract();
+    worker = await Tesseract.createWorker(langs, 1, {
+      logger: m => { if (m.status && m.progress != null && /load|initializ/.test(m.status)) busyText(`${m.status} ${Math.round(m.progress * 100)}%`); }
+    });
+    const parts = [];
+    for (let i = 0; i < state.pages.length; i++) {
+      busyText(`Reading page ${i + 1}/${state.pages.length} (OCR)…`); await yieldUI();
+      const c = await renderComposite(state.pages[i], 2.2);
+      const { data } = await worker.recognize(c);
+      c.width = c.height = 0;
+      parts.push(`===== Page ${i + 1} =====\n` + data.text.trim());
+    }
+    return parts.join('\n\n');
+  } finally { if (worker) await worker.terminate().catch(() => {}); busy(false); }
+}
+
+/* Hybrid: keep good text-layer lines (exact symbols), re-read only broken lines with OCR. */
+async function hybridText() {
+  busy(true, 'Loading OCR engine (first time ~10–20 MB)…');
+  let worker;
+  try {
+    await loadTesseract();
+    worker = await Tesseract.createWorker('hin+eng', 1, { logger: m => { if (m.status && m.progress != null && /load|initializ/.test(m.status)) busyText(`${m.status} ${Math.round(m.progress * 100)}%`); } });
+    const parts = [];
+    for (let i = 0; i < state.pages.length; i++) {
+      busyText(`Fixing page ${i + 1}/${state.pages.length}…`); await yieldUI();
+      const p = state.pages[i], lines = await pageLines(p);
+      if (lines.some(l => l.bad) || !lines.length) {
+        const k = 2.5, c = await renderComposite(p, k);
+        const { data } = await worker.recognize(c);
+        c.width = c.height = 0;
+        const ocr = [];
+        for (const b of data.blocks || []) for (const par of b.paragraphs || []) for (const ln of par.lines || []) ocr.push({ y0: ln.bbox.y0 / k, y1: ln.bbox.y1 / k, x0: ln.bbox.x0 / k, s: ln.text.trim(), used: false });
+        if (!lines.length) parts.push(`===== Page ${i + 1} =====\n` + ocr.map(o => o.s).join('\n'));
+        else {
+          for (const l of lines) {
+            if (!l.bad) continue;
+            const hit = ocr.filter(o => !o.used && (o.y0 + o.y1) / 2 > l.y - l.fh * 1.1 && (o.y0 + o.y1) / 2 < l.y + l.fh * 0.4).sort((a, b) => a.x0 - b.x0);
+            if (hit.length) { hit.forEach(o => { o.used = true; }); l.s = hit.map(o => o.s).join(' '); l.bad = false; }
+          }
+          parts.push(`===== Page ${i + 1} =====\n` + linesToText(lines));
+        }
+      } else parts.push(`===== Page ${i + 1} =====\n` + linesToText(lines));
+    }
+    convState.badLines = false;
+    return parts.join('\n\n');
+  } finally { if (worker) await worker.terminate().catch(() => {}); busy(false); }
+}
+
+/* ---- Text -> .docx (minimal valid Word file) ---- */
+async function textToDocx(text) {
+  const x = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+  const body = text.split('\n').map(line => {
+    if (/^===== Page \d+ =====$/.test(line)) return line === '===== Page 1 =====' ? '' : '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+    return `<w:p><w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Nirmala UI"/></w:rPr><w:t xml:space="preserve">${x(line)}</w:t></w:r></w:p>`;
+  }).join('');
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+  zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+  zip.file('word/document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>`);
+  return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+
+/* ---- Text -> PDF with word wrap (custom fonts for Hindi) ---- */
+async function textToPdfBytes(text, { font = 'Helvetica', size = 12, margin = 50, title = '' } = {}) {
+  const doc = await PDFDocument.create();
+  doc.registerFontkit(fontkit);
+  const meta = fontMeta(font);
+  if (meta.std && !winAnsiOk(text)) throw new Error('Hindi/special characters ke liye ek TTF font chuniye (Settings → Upload font, e.g. Noto Sans Devanagari)');
+  const f = meta.std ? await doc.embedFont(StandardFonts[STD_FONTS[font].pdf[0]]) : await doc.embedFont(state.fonts.get(font).bytes, { subset: true });
+  const W = 595, H = 842, lh = size * 1.45, maxW = W - margin * 2;
+  let page = doc.addPage([W, H]), y = H - margin - size;
+  const newLine = () => { y -= lh; if (y < margin) { page = doc.addPage([W, H]); y = H - margin - size; } };
+  const wrap = (para) => {
+    if (!para) return [''];
+    const words = para.split(/(\s+)/), lines = [];
+    let cur = '';
+    for (const w of words) {
+      const t = cur + w;
+      if (f.widthOfTextAtSize(t.trimEnd(), size) <= maxW || !cur.trim()) {
+        if (f.widthOfTextAtSize(t.trimEnd(), size) > maxW) { // a single very long word: break by characters
+          let chunk = '';
+          for (const ch of t) { if (f.widthOfTextAtSize(chunk + ch, size) > maxW) { lines.push(chunk); chunk = ch; } else chunk += ch; }
+          cur = chunk;
+        } else cur = t;
+      } else { lines.push(cur.trimEnd()); cur = w.trimStart(); }
+    }
+    lines.push(cur.trimEnd());
+    return lines;
+  };
+  for (const para of String(text).replace(/\r/g, '').split('\n')) {
+    for (const line of wrap(para)) {
+      if (line) page.drawText(line, { x: margin, y, size, font: f, color: rgb(0, 0, 0) });
+      newLine();
+    }
+  }
+  if (title) doc.setTitle(title);
+  return doc.save();
+}
+
+/* ====================== Simple panels: Watermark, Convert, More ====================== */
+const detectState = { list: null, picked: new Set() };
+
+function panelWatermark(b) {
+  const w = state.wm;
+  if (w.tab !== 'add') w.tab = 'remove';
+  b.innerHTML = `<div class="tabs"><button class="btn ${w.tab === 'remove' ? 'active' : ''}" data-tab="remove">1 · Remove old</button><button class="btn ${w.tab === 'add' ? 'active' : ''}" data-tab="add">2 · Add mine</button></div><div id="wmBody"></div>`;
+  $$('[data-tab]', b).forEach(x => x.onclick = () => { w.tab = x.dataset.tab; renderPanel(); });
+  const wb = $('#wmBody', b);
+  if (w.tab === 'add') renderStudio(wb); else renderRemove(wb);
+}
+
+function renderRemove(wb) {
+  const w = state.wm, c = state.cover, list = detectState.list;
+  const N = state.pages.length;
+  let found = '';
+  if (list && !list.length) found = `<div class="note">No watermark was found automatically. Try <b>Select area</b> below: drag a box over the watermark.</div>`;
+  else if (list) found = `<div class="cands">${list.map((cd, i) => {
+    const d = describeCandidate(cd, N);
+    return `<label class="cand"><input type="checkbox" data-ci="${i}" ${detectState.picked.has(cd.key) ? 'checked' : ''}>
+      <span class="cimg">${cd.preview ? `<img src="${cd.preview}" alt="">` : `<span class="hint">${esc(KIND_LABEL[cd.kind] || '')}</span>`}</span>
+      <span class="ctx"><b>${esc(d.what)}</b><small>${esc(d.tags)}</small></span></label>`;
+  }).join('')}</div>
+    <button class="btn primary big" id="wmRemoveSel">Remove ticked items</button>`;
+  wb.innerHTML = `
+    <button class="btn primary big" id="wmDetect"><svg class="i"><use href="#i-find"/></svg>Find watermark automatically</button>
+    ${found}
+    <details class="more" ${list && !list.length ? 'open' : ''}><summary>Other ways to remove</summary>
+      <div class="col"><label>Type the watermark text</label><div class="row"><input type="text" id="wmText" placeholder="e.g. Aspiron Education" value="${esc(w.text)}" style="flex:1"><button class="btn outline" id="wmGo">Remove</button></div></div>
+      <div class="col"><label>Draw a box over it</label><div class="row"><button class="btn outline" id="wmDraw"><svg class="i"><use href="#i-rect"/></svg>Select area</button>
+        <label><input type="checkbox" id="wmAll" ${w.regionAll ? 'checked' : ''}> same spot on all pages</label></div></div>
+      <div class="col"><label>Paint over it (for scanned pages)</label><div class="row"><button class="btn outline" id="cvDraw"><svg class="i"><use href="#i-white"/></svg>Cover area</button>
+        <label>Color <input type="color" id="cvColor" value="${safeColor(c.color, '#ffffff')}"></label>
+        <label><input type="checkbox" id="cvAuto" ${c.auto ? 'checked' : ''}> auto color</label>
+        <label><input type="checkbox" id="cvBlur" ${c.blur ? 'checked' : ''}> blur</label>
+        <label><input type="checkbox" id="cvAll" ${c.all ? 'checked' : ''}> all pages</label></div></div>
+    </details>
+    <div class="row" style="margin-top:12px"><button class="btn outline" id="wmUndo" ${history.undo.length ? '' : 'disabled'}><svg class="i"><use href="#i-undo"/></svg>Undo</button>
+      <button class="btn outline" id="wmNext">Next: add my watermark →</button></div>`;
+  $('#wmDetect', wb).onclick = async () => {
+    if (!needDoc()) return;
+    try {
+      detectState.list = await detectWatermarks();
+      detectState.picked = new Set(detectState.list.filter(x => x.likely).map(x => x.key));
+    } catch (e) { fail('Detection failed', e); detectState.list = []; }
+    renderPanel();
+  };
+  $$('[data-ci]', wb).forEach(x => x.onchange = () => { const k = list[+x.dataset.ci].key; x.checked ? detectState.picked.add(k) : detectState.picked.delete(k); });
+  if ($('#wmRemoveSel', wb)) $('#wmRemoveSel', wb).onclick = async () => {
+    if (await removeCandidates([...detectState.picked])) { detectState.list = null; detectState.picked.clear(); renderPanel(); }
+  };
+  $('#wmText', wb).oninput = e => { w.text = e.target.value; };
+  $('#wmGo', wb).onclick = () => { if (needDoc()) { w.scope = 'all'; wmAuto(); } };
+  $('#wmAll', wb).onchange = e => { w.regionAll = e.target.checked; };
+  $('#wmDraw', wb).onclick = () => { if (!needDoc()) return; setTool('wmregion'); closePanelOnPhone(); toast('Watermark ke upar ungli/mouse se box banaiye.'); };
+  $('#cvColor', wb).oninput = e => { c.color = e.target.value; c.auto = false; $('#cvAuto', wb).checked = false; };
+  $('#cvAuto', wb).onchange = e => { c.auto = e.target.checked; };
+  $('#cvBlur', wb).onchange = e => { c.blur = e.target.checked; };
+  $('#cvAll', wb).onchange = e => { c.all = e.target.checked; };
+  $('#cvDraw', wb).onclick = () => { if (!needDoc()) return; setTool('cover'); closePanelOnPhone(); toast('Jis jagah ko dhakna hai uske upar box banaiye.'); };
+  $('#wmUndo', wb).onclick = undo;
+  $('#wmNext', wb).onclick = () => { w.tab = 'add'; renderPanel(); };
+}
+
+function renderStudio(wb) {
+  const st = state.stamp;
+  wb.innerHTML = `<div class="tabs"><button class="btn ${st.kind === 'text' ? 'active' : ''}" data-kind="text">Text</button><button class="btn ${st.kind === 'image' ? 'active' : ''}" data-kind="image">Logo / image</button></div>
+    ${st.kind === 'text' ? `<div class="col"><label>Your watermark text</label><input type="text" id="sxText" value="${esc(st.text)}" placeholder="e.g. Your Company Name"></div>
+      <div class="row"><label>Font <select id="sxFont">${fontOptionsHTML(st.font)}</select></label><label><input type="checkbox" id="sxBold" ${st.bold ? 'checked' : ''}> Bold</label></div>
+      <div class="row"><label>Size <input type="number" id="sxSize" min="6" max="400" value="${safeNum(st.size, 60, 6, 400)}" style="width:70px"></label><label>Color <input type="color" id="sxColor" value="${safeColor(st.color)}"></label></div>`
+    : `<div class="row"><button class="btn outline" id="sxPick"><svg class="i"><use href="#i-image"/></svg>${st.imageId ? 'Change logo' : 'Choose logo (PNG/JPG)'}</button>${st.imageId ? '<span class="hint">Logo selected ✓</span>' : ''}</div>
+      <div class="row"><label>Width <input type="range" id="sxScale" min="5" max="100" value="${safeNum(st.scale, 40, 5, 100)}"></label><span class="hint">% of page</span></div>`}
+    <div class="row"><label>Light ↔ Dark <input type="range" id="sxOp" min="0.05" max="1" step="0.05" value="${safeNum(st.opacity, 0.25, 0.05, 1)}"></label></div>
+    <div class="row"><span class="hint">Tilt</span><input type="hidden" id="sxAng" value="${safeNum(st.ang, -45, -180, 180)}">${[[0, '—'], [-45, '⟋'], [45, '⟍'], [-90, '|']].map(([a, l]) => `<button class="btn sm ${safeNum(st.ang, -45) === a ? 'active' : 'outline'}" data-ang="${a}">${l}</button>`).join('')}</div>
+    <div class="row"><label>Where <select id="sxPos">${[['middle-center', 'Centre'], ['top-center', 'Top'], ['bottom-center', 'Bottom'], ['top-left', 'Top left'], ['top-right', 'Top right'], ['bottom-left', 'Bottom left'], ['bottom-right', 'Bottom right']].map(([v, l]) => `<option value="${v}" ${st.pos === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label>Pages <select id="sxScope">${[['all', 'All'], ['current', 'This page'], ['odd', 'Odd'], ['even', 'Even']].map(([v, l]) => `<option value="${v}" ${st.scope === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+    <label class="row"><input type="checkbox" id="sxTile" ${st.tile ? 'checked' : ''}> Repeat all over the page</label>
+    <button class="btn primary big" id="sxGo">Apply watermark</button>
+    <div class="note">Baad mein watermark par tap karke khiskaiye, kone se bada-chhota kijiye, ya Angle se ghumaiye.</div>`;
+  const read = () => {
+    const v = (id) => $('#' + id, wb);
+    if (v('sxText')) Object.assign(st, { text: v('sxText').value, font: v('sxFont').value === '__upload' ? st.font : v('sxFont').value, bold: v('sxBold').checked, size: safeNum(v('sxSize').value, 60, 6, 400), color: v('sxColor').value });
+    if (v('sxScale')) st.scale = +v('sxScale').value;
+    Object.assign(st, { opacity: +v('sxOp').value, ang: safeNum(v('sxAng').value, 0, -180, 180), pos: v('sxPos').value, tile: v('sxTile').checked, scope: v('sxScope').value });
+  };
+  $$('[data-kind]', wb).forEach(x => x.onclick = () => { read(); st.kind = x.dataset.kind; renderPanel(); });
+  $$('[data-ang]', wb).forEach(x => x.onclick = () => { read(); st.ang = +x.dataset.ang; renderPanel(); });
+  if ($('#sxFont', wb)) $('#sxFont', wb).onchange = async (e) => { if (e.target.value === '__upload') { const id = await pickFontFile(); read(); if (id) st.font = id; renderPanel(); } };
+  if ($('#sxPick', wb)) $('#sxPick', wb).onclick = () => {
+    const inp = $('#fileImage'); inp.value = '';
+    inp.onchange = async () => { const f = inp.files[0]; if (!f) return; try { read(); const { bytes, mime } = await imageFileToBytes(f); st.imageId = await registerImage(bytes, mime); renderPanel(); } catch (e) { fail('Logo failed', e); } };
+    inp.click();
+  };
+  $('#sxGo', wb).onclick = () => { read(); applyStamp({ ...st }); closePanelOnPhone(); };
+}
+
+/* ---- Convert ---- */
+const convState = { text: null, garbled: false, badLines: false };
+function panelConvert(b) {
+  const has = state.pages.length > 0;
+  b.innerHTML = `
+    <div class="grid2">
+      <button class="tile" id="cvTxt" ${has ? '' : 'disabled'}><b>PDF → Text</b><small>copy all text</small></button>
+      <button class="tile" id="cvWord" ${has ? '' : 'disabled'}><b>PDF → Word</b><small>.docx file</small></button>
+      <button class="tile" id="cvOcr" ${has ? '' : 'disabled'}><b>Scan / OCR</b><small>photos, scans, broken Hindi</small></button>
+      <button class="tile" id="cvImg" ${has ? '' : 'disabled'}><b>PDF → JPG</b><small>one image per page</small></button>
+      <button class="tile" id="cvT2P"><b>Text → PDF</b><small>type or paste</small></button>
+      <button class="tile" id="cvI2P"><b>Photos → PDF</b><small>JPG / PNG</small></button>
+      <button class="tile" id="cvCmp" ${has ? '' : 'disabled'}><b>Compress</b><small>smaller file</small></button>
+      <button class="tile" id="cvMerge"><b>Merge PDFs</b><small>join files</small></button>
+    </div>
+    <div class="row hidden" id="ocrRow"><label>OCR language <select id="ocrLang"><option value="hin+eng">Hindi + English</option><option value="eng">English</option><option value="hin">Hindi</option></select></label><button class="btn primary" id="ocrGo">Start OCR</button></div>
+    <div id="cvOut"></div>`;
+  const out = $('#cvOut', b);
+  const showText = (txt, how) => {
+    convState.text = txt; convState.garbled = looksGarbled(txt);
+    out.innerHTML = `${convState.garbled ? `<div class="note warn">Some lines (usually Hindi) came out broken because the PDF doesn't store those letters properly.<br><button class="btn primary" id="cvFix" style="margin-top:6px">Fix broken lines with OCR</button></div>` : ''}
+      <textarea id="cvArea" rows="12" style="width:100%;font-size:13px" spellcheck="false"></textarea>
+      <div class="row"><button class="btn primary" id="cvCopy">Copy all</button><button class="btn outline" id="cvDlT">.txt</button><button class="btn outline" id="cvDlW">Word</button><button class="btn outline" id="cvDlP">As new PDF</button></div>
+      <div class="note">${how}. You can edit the text above before copying or saving.</div>`;
+    $('#cvArea', out).value = txt;
+    const cur = () => $('#cvArea', out).value;
+    if ($('#cvFix', out)) $('#cvFix', out).onclick = async () => { try { showText(await pdfToText(true, true), 'Good lines kept exactly; broken lines re-read with OCR — please proof-read Hindi'); } catch (e) { fail('OCR failed', e); } };
+    $('#cvCopy', out).onclick = async () => { try { await navigator.clipboard.writeText(cur()); toast('Copied ✓', 'ok'); } catch (e) { $('#cvArea', out).select(); document.execCommand('copy'); toast('Copied ✓', 'ok'); } };
+    $('#cvDlT', out).onclick = () => downloadBlob(new Blob(['﻿' + cur()], { type: 'text/plain;charset=utf-8' }), `${baseName()}.txt`, 'text/plain');
+    $('#cvDlW', out).onclick = async () => downloadBlob(await textToDocx(cur()), `${baseName()}.docx`);
+    $('#cvDlP', out).onclick = () => textToPdfDialog(cur());
+  };
+  $('#cvTxt', b).onclick = async () => { try { convState.badLines = false; showText(await pdfToText(true), 'Text read from the PDF'); } catch (e) { fail('Text read failed', e); } };
+  $('#cvWord', b).onclick = async () => {
+    try { const t = await pdfToText(true); if (looksGarbled(t)) { showText(t, 'Text read from the PDF'); return; } downloadBlob(await textToDocx(t), `${baseName()}.docx`); toast('Word file saved.', 'ok'); }
+    catch (e) { fail('Word export failed', e); }
+  };
+  $('#cvOcr', b).onclick = () => $('#ocrRow', b).classList.toggle('hidden');
+  $('#ocrGo', b).onclick = async () => { try { showText(await ocrPdf($('#ocrLang', b).value), 'Text recognised with OCR — please proof-read'); } catch (e) { fail('OCR failed', e); } };
+  $('#cvImg', b).onclick = () => exportImages('jpg', 2, '');
+  $('#cvT2P', b).onclick = () => textToPdfDialog('');
+  $('#cvI2P', b).onclick = () => pickAndOpen('image/png,image/jpeg,image/webp');
+  $('#cvCmp', b).onclick = () => compressPdf('medium');
+  $('#cvMerge', b).onclick = () => has ? mergePdf(state.pages.length) : pickAndOpen('application/pdf,.pdf');
+}
+function pickAndOpen(accept, after) {
+  const i = $('#filePdf'); i.value = ''; i.accept = accept;
+  state.afterOpen = after || null;
+  i.click();
+  setTimeout(() => { i.accept = 'application/pdf,.pdf,image/png,image/jpeg,image/webp'; }, 1000);
+}
+async function textToPdfDialog(initial) {
+  const res = await modal({
+    title: 'Text → PDF',
+    body: `<textarea id="tpText" rows="10" style="width:100%" placeholder="Type or paste text here (Hindi works with a Hindi font)">${esc(initial || '')}</textarea>
+      <div class="row"><label>Font <select id="tpFont">${fontOptionsHTML(state.settings.font)}</select></label><label>Size <input type="number" id="tpSize" value="12" min="6" max="72" style="width:64px"></label></div>`,
+    buttons: [{ label: 'Cancel', value: null }, { label: 'Download PDF', value: 'dl', collect: true }, { label: 'Open in editor', primary: true, collect: true }],
+    onOpen: (r) => $('#tpFont', r).addEventListener('change', async (ev) => { if (ev.target.value === '__upload') { const id = await pickFontFile(); ev.target.innerHTML = fontOptionsHTML(id || 'Helvetica'); } }),
+    collect: (r, v) => {
+      const text = $('#tpText', r).value, font = $('#tpFont', r).value;
+      if (!text.trim()) { toast('Kuch text likhiye.', 'warn'); return undefined; }
+      if (font === '__upload') return undefined;
+      return { text, font, size: safeNum($('#tpSize', r).value, 12, 6, 72), dl: v === 'dl' };
+    }
+  });
+  if (!res) return;
+  busy(true, 'Creating PDF…');
+  try {
+    const bytes = await textToPdfBytes(res.text, { font: res.font, size: res.size });
+    if (res.dl) { downloadBlob(bytes, 'text.pdf'); toast('PDF saved.', 'ok'); }
+    else { busy(false); await openMainFile(new File([bytes], 'text.pdf', { type: 'application/pdf' })); }
+  } catch (e) { fail('Text → PDF failed', e); } finally { busy(false); }
+}
+
+/* ---- More ---- */
+function panelMore(b) {
+  b.innerHTML = `<div class="grid2">
+    <button class="tile" data-open="find"><b>Find text</b><small>search & highlight</small></button>
+    <button class="tile" data-open="forms"><b>Fill form</b><small>form fields</small></button>
+    <button class="tile" data-open="export"><b>Save / export</b><small>PDF, images, compress</small></button>
+    <button class="tile" data-open="settings"><b>Settings</b><small>fonts, theme</small></button>
+    <button class="tile" data-tool2="field"><b>Add form field</b><small>fillable box</small></button>
+    <button class="tile" data-tool2="arrow"><b>Arrow / line</b><small>shapes</small></button>
+  </div>`;
+  $$('[data-open]', b).forEach(x => x.onclick = () => openPanel(x.dataset.open));
+  $$('[data-tool2]', b).forEach(x => x.onclick = () => { setTool(x.dataset.tool2); closePanelOnPhone(); });
+}
+
+/* ---- Home screen actions ---- */
+function runAfterOpen() {
+  const a = state.afterOpen; state.afterOpen = null;
+  if (!a || !state.pages.length) return;
+  if (a === 'remove') { state.wm.tab = 'remove'; openPanel('watermark'); $('#wmDetect') && $('#wmDetect').click(); }
+  else if (a === 'add') { state.wm.tab = 'add'; openPanel('watermark'); }
+  else if (a === 'convert') openPanel('convert');
+  else if (a === 'compress') compressPdf('medium');
+  else if (a === 'sign') placeSignature();
+}
+function wireHub() {
+  $$('#empty [data-hub]').forEach(x => x.onclick = () => {
+    const a = x.dataset.hub;
+    if (a === 'text2pdf') return textToPdfDialog('');
+    if (a === 'photos') return pickAndOpen('image/png,image/jpeg,image/webp');
+    if (a === 'merge') return pickAndOpen('application/pdf,.pdf');
+    pickAndOpen('application/pdf,.pdf', a === 'edit' ? null : a);
+  });
+}
+
 /* ================================= UI ================================= */
 function onDocChanged() {
   if (state.sel && !findObj(state.sel.pageId, state.sel.objId)) state.sel = null;
@@ -2964,6 +3559,7 @@ function renderOptbar() {
     parts.push(act('dup', 'dup', 'Duplicate'), act('allpages', 'pages', 'All pages'), act('front', 'front', 'Front'), act('back', 'back', 'Back'), act('del', 'trash', 'Delete', 'danger'), act('delall', 'trash', 'Delete on all pages', 'danger'));
   } else {
     const t = state.tool, o = state.opts[t];
+    if (['rect', 'ellipse', 'arrow', 'line'].includes(t)) parts.push(['rect', 'ellipse', 'arrow', 'line'].map(k => `<button class="btn sm ${k === t ? 'active' : 'outline'}" data-shape="${k}">${{ rect: '▭ Box', ellipse: '◯ Circle', arrow: '→ Arrow', line: '— Line' }[k]}</button>`).join(''));
     if (['pen', 'line', 'arrow', 'rect', 'ellipse', 'highlight'].includes(t)) {
       parts.push(colorIn(o.color), widthIn(o.width, t === 'highlight' ? 60 : 30), opIn(o.opacity));
       if (t === 'rect' || t === 'ellipse') parts.push(fillIn(o.fill));
@@ -3018,98 +3614,13 @@ function openPanel(name) {
   if (state.panel) renderPanel();
 }
 function closePanelOnPhone() { if (window.innerWidth <= 760 && state.panel) openPanel(state.panel); }
-const PANEL_TITLES = { find: 'Find text', watermark: 'Watermark', pages: 'Pages', forms: 'Form fields', export: 'Save & export', settings: 'Settings' };
+const PANEL_TITLES = { convert: 'Convert', more: 'More tools', find: 'Find text', watermark: 'Watermark', pages: 'Pages', forms: 'Form fields', export: 'Save & export', settings: 'Settings' };
 function renderPanel() {
   const name = state.panel; if (!name) return;
   $('#panelTitle').textContent = PANEL_TITLES[name];
   const body = $('#panelBody');
-  const fn = { find: panelFind, watermark: panelWatermark, pages: panelPages, forms: panelForms, export: panelExport, settings: panelSettings }[name];
+  const fn = { convert: panelConvert, more: panelMore, find: panelFind, watermark: panelWatermark, pages: panelPages, forms: panelForms, export: panelExport, settings: panelSettings }[name];
   fn(body);
-}
-
-function panelWatermark(b) {
-  const w = state.wm, c = state.cover, tab = w.tab;
-  b.innerHTML = `<div class="note">Step 1: purana watermark hatao (Auto / Region / Cover). Step 2: <b>Add</b> tab se apna text ya logo watermark lagao.</div>
-  <div class="tabs">${[['add', 'Add'], ['auto', 'Auto'], ['region', 'Region'], ['cover', 'Cover']].map(([k, l]) => `<button class="btn ${tab === k ? 'active' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
-  <div id="wmBody"></div>
-  <div class="row" style="margin-top:14px"><button class="btn outline" id="wmUndo" ${history.undo.length ? '' : 'disabled'}><svg class="i"><use href="#i-undo"/></svg>Undo last action</button></div>`;
-  const wb = $('#wmBody', b);
-  if (tab === 'auto') {
-    wb.innerHTML = `<div class="col"><label>Watermark text</label><input type="text" id="wmText" placeholder="e.g. CONFIDENTIAL   or   Draft | Sample" value="${esc(w.text)}"></div>
-    <div class="note">Case-insensitive and partial: "confid" matches "CONFIDENTIAL". Separate several texts with <b>|</b>. Spaces are ignored, so letter-by-letter watermarks are found too.</div>
-    <div class="col"><label>Pages</label><select id="wmScope">
-      <option value="all" ${w.scope === 'all' ? 'selected' : ''}>All pages</option><option value="current" ${w.scope === 'current' ? 'selected' : ''}>Current page</option>
-      <option value="selected" ${w.scope === 'selected' ? 'selected' : ''}>Pages selected in sidebar (${state.checked.size})</option><option value="range" ${w.scope === 'range' ? 'selected' : ''}>Range…</option></select>
-      <input type="text" id="wmRange" placeholder="e.g. 1-3, 7" value="${esc(w.range)}" class="${w.scope === 'range' ? '' : 'hidden'}"></div>
-    <label class="row"><input type="checkbox" id="wmAnn" ${w.annots ? 'checked' : ''}> Also remove all Stamp / Watermark annotations</label>
-    <label class="row"><input type="checkbox" id="wmTag" ${w.tagged ? 'checked' : ''}> Also remove content tagged as watermark (Acrobat artifacts / "Watermark" layers)</label>
-    <button class="btn primary" id="wmGo" style="width:100%">Remove matching text</button>
-    <div class="note">This deletes the actual text-drawing instructions (true removal). It only works when the watermark is real text — not when it is part of a picture or a scanned page.</div>`;
-    $('#wmText', wb).oninput = e => { w.text = e.target.value; };
-    $('#wmScope', wb).onchange = e => { w.scope = e.target.value; $('#wmRange', wb).classList.toggle('hidden', w.scope !== 'range'); };
-    $('#wmRange', wb).oninput = e => { w.range = e.target.value; };
-    $('#wmAnn', wb).onchange = e => { w.annots = e.target.checked; };
-    $('#wmTag', wb).onchange = e => { w.tagged = e.target.checked; };
-    $('#wmGo', wb).onclick = async () => { if (!needDoc()) return; await wmAuto(); if (history.undo.length && history.undo[history.undo.length - 1].label.startsWith('Remove watermark')) toast('Ab "Add" tab se apna watermark lagaiye.', 'info', 6000); };
-  } else if (tab === 'region') {
-    wb.innerHTML = `<p>Drag a rectangle over the watermark. Everything that sits inside it is deleted from the page content: text runs, vector shapes, and embedded images whose centre is inside (including image watermarks drawn as separate pictures), plus annotations.</p>
-    <label class="row"><input type="checkbox" id="wmAll" ${w.regionAll ? 'checked' : ''}> Apply the same rectangle to every page</label>
-    <button class="btn primary" id="wmDraw" style="width:100%"><svg class="i"><use href="#i-rect"/></svg>Draw removal rectangle</button>
-    <div class="note">Large background images are kept unless most of the image is inside your rectangle. If the watermark is baked into a scan, nothing can be separated — use Cover.</div>`;
-    $('#wmAll', wb).onchange = e => { w.regionAll = e.target.checked; };
-    $('#wmDraw', wb).onclick = () => { if (!needDoc()) return; setTool('wmregion'); closePanelOnPhone(); toast('Drag a rectangle over the watermark.'); };
-  } else if (tab === 'add') {
-    const st = state.stamp;
-    wb.innerHTML = `<div class="tabs"><button class="btn ${st.kind === 'text' ? 'active' : ''}" data-kind="text">Text</button><button class="btn ${st.kind === 'image' ? 'active' : ''}" data-kind="image">Logo / image</button></div>
-    ${st.kind === 'text' ? `<div class="col"><label>Watermark text</label><input type="text" id="sxText" value="${esc(st.text)}" placeholder="e.g. Your Company Name"></div>
-      <div class="row"><label>Font <select id="sxFont">${fontOptionsHTML(st.font)}</select></label><label><input type="checkbox" id="sxBold" ${st.bold ? 'checked' : ''}> Bold</label></div>
-      <div class="row"><label>Size <input type="number" id="sxSize" min="6" max="400" value="${safeNum(st.size, 60, 6, 400)}" style="width:70px"></label><label>Color <input type="color" id="sxColor" value="${safeColor(st.color)}"></label></div>`
-    : `<div class="row"><button class="btn outline" id="sxPick"><svg class="i"><use href="#i-image"/></svg>${st.imageId ? 'Change logo' : 'Choose logo (PNG/JPG)'}</button>${st.imageId ? '<span class="hint">Logo selected ✓</span>' : ''}</div>
-      <div class="row"><label>Width <input type="range" id="sxScale" min="5" max="100" value="${safeNum(st.scale, 40, 5, 100)}"></label><span class="hint">% of page</span></div>`}
-    <div class="row"><label>Opacity <input type="range" id="sxOp" min="0.05" max="1" step="0.05" value="${safeNum(st.opacity, 0.25, 0.05, 1)}"></label>
-      <label>Angle <input type="number" id="sxAng" min="-180" max="180" value="${safeNum(st.ang, -45, -180, 180)}" style="width:64px">°</label></div>
-    <div class="row"><button class="btn sm outline" data-ang="0">0°</button><button class="btn sm outline" data-ang="-45">45° ↗</button><button class="btn sm outline" data-ang="45">45° ↘</button><button class="btn sm outline" data-ang="-90">90°</button></div>
-    <div class="row"><label>Position <select id="sxPos">${[['middle-center', 'Centre'], ['top-center', 'Top'], ['bottom-center', 'Bottom'], ['top-left', 'Top left'], ['top-right', 'Top right'], ['bottom-left', 'Bottom left'], ['bottom-right', 'Bottom right']].map(([v, l]) => `<option value="${v}" ${st.pos === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
-    <label class="row"><input type="checkbox" id="sxTile" ${st.tile ? 'checked' : ''}> Repeat across the whole page (tiled pattern)</label>
-    <div class="row"><label>Pages <select id="sxScope">${[['all', 'All pages'], ['current', 'Current page'], ['odd', 'Odd pages'], ['even', 'Even pages']].map(([v, l]) => `<option value="${v}" ${st.scope === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
-    <button class="btn primary" id="sxGo" style="width:100%">Apply watermark</button>
-    <div class="note">Lagne ke baad har watermark ek normal object hai: tap karke khiskaiye, kone se bada-chhota kijiye, Angle slider se ghumaiye. "All pages" button se ek page ka object sab pages par copy hota hai.</div>`;
-    const read = () => {
-      const v = (id) => $('#' + id, wb);
-      if (v('sxText')) Object.assign(st, { text: v('sxText').value, font: v('sxFont').value === '__upload' ? st.font : v('sxFont').value, bold: v('sxBold').checked, size: safeNum(v('sxSize').value, 60, 6, 400), color: v('sxColor').value });
-      if (v('sxScale')) st.scale = +v('sxScale').value;
-      Object.assign(st, { opacity: +v('sxOp').value, ang: safeNum(v('sxAng').value, 0, -180, 180), pos: v('sxPos').value, tile: v('sxTile').checked, scope: v('sxScope').value });
-    };
-    $$('[data-kind]', wb).forEach(x => x.onclick = () => { read(); st.kind = x.dataset.kind; renderPanel(); });
-    $$('[data-ang]', wb).forEach(x => x.onclick = () => { $('#sxAng', wb).value = x.dataset.ang; });
-    if ($('#sxFont', wb)) $('#sxFont', wb).onchange = async (e) => { if (e.target.value === '__upload') { const id = await pickFontFile(); read(); if (id) st.font = id; renderPanel(); } };
-    if ($('#sxPick', wb)) $('#sxPick', wb).onclick = () => {
-      const inp = $('#fileImage'); inp.value = '';
-      inp.onchange = async () => { const f = inp.files[0]; if (!f) return; try { read(); const { bytes, mime } = await imageFileToBytes(f); st.imageId = await registerImage(bytes, mime); renderPanel(); } catch (e) { fail('Logo failed', e); } };
-      inp.click();
-    };
-    $('#sxGo', wb).onclick = () => { read(); applyStamp({ ...st }); closePanelOnPhone(); };
-  } else {
-    wb.innerHTML = `<div class="note">Cover paints a patch over the area — best for scanned pages or watermarks baked into images. (The original stays underneath in the file; use Auto/Region for real deletion.)</div>
-    <div class="row"><label>Color <input type="color" id="cvColor" value="${safeColor(c.color, '#ffffff')}"></label>
-      <button class="btn sm outline" id="cvDrop"><svg class="i"><use href="#i-drop"/></svg>Pick from page</button></div>
-    <label class="row"><input type="checkbox" id="cvAuto" ${c.auto ? 'checked' : ''}> Auto-sample color from the surrounding background</label>
-    <label class="row"><input type="checkbox" id="cvBlur" ${c.blur ? 'checked' : ''}> Blur instead of solid color (softens the area)</label>
-    <label class="row"><input type="checkbox" id="cvAll" ${c.all ? 'checked' : ''}> Apply the same rectangle to every page</label>
-    <button class="btn primary" id="cvDraw" style="width:100%"><svg class="i"><use href="#i-rect"/></svg>Draw cover rectangle</button>
-    <div class="note">Best for scanned pages, flattened images and watermarks that can't be separated. Covers can be selected, moved, resized and deleted like other objects.</div>`;
-    $('#cvColor', wb).oninput = e => { c.color = e.target.value; c.auto = false; $('#cvAuto', wb).checked = false; };
-    $('#cvAuto', wb).onchange = e => { c.auto = e.target.checked; };
-    $('#cvBlur', wb).onchange = e => { c.blur = e.target.checked; };
-    $('#cvAll', wb).onchange = e => { c.all = e.target.checked; };
-    $('#cvDrop', wb).onclick = () => { if (!needDoc()) return; prevTool = 'cover'; state.tool = 'select'; setTool('eyedrop'); prevTool = 'cover'; closePanelOnPhone(); toast('Tap the page background to pick a color.'); };
-    $('#cvDraw', wb).onclick = () => {
-      if (!needDoc()) return;
-      setTool('cover'); closePanelOnPhone();
-    };
-  }
-  $$('[data-tab]', b).forEach(x => x.onclick = () => { w.tab = x.dataset.tab; renderPanel(); });
-  $('#wmUndo', b).onclick = undo;
 }
 
 function panelFind(b) {
@@ -3355,14 +3866,14 @@ function pageOp(op) {
 }
 function wireUI() {
   const pick = () => { const i = $('#filePdf'); i.value = ''; i.click(); };
-  $('#btnOpen').onclick = pick; $('#btnOpen2').onclick = pick;
+  $('#btnOpen').onclick = pick;
   $('#filePdf').onchange = (e) => openFiles(e.target.files);
   $('#btnSave').onclick = downloadPdf;
   $('#btnUndo').onclick = undo; $('#btnRedo').onclick = redo;
   $('#btnZoomIn').onclick = () => setZoom(state.zoom * 1.2);
   $('#btnZoomOut').onclick = () => setZoom(state.zoom / 1.2);
   $('#btnFit').onclick = () => fitWidth();
-  $('#btnMenu').onclick = () => openPanel(state.panel && state.panel !== 'export' ? state.panel : 'export');
+  $('#btnMenu').onclick = () => openPanel('more');
   $('#sbToggle').onclick = () => $('#sidebar').classList.toggle('open');
   $('#pageInput').onchange = (e) => { const n = parseInt(e.target.value, 10); if (n >= 1) goToPage(n - 1); else e.target.value = state.current + 1; };
   $('#pageInput').onfocus = (e) => e.target.select();
@@ -3376,6 +3887,7 @@ function wireUI() {
     const t = e.target.closest('#toolbar [data-tool]'); if (t) { setTool(t.dataset.tool); return; }
     const pn = e.target.closest('#toolbar [data-panel]'); if (pn) { openPanel(pn.dataset.panel); return; }
     const act = e.target.closest('#optbar [data-act]'); if (act) onOptAction(act.dataset.act);
+    const sh = e.target.closest('#optbar [data-shape]'); if (sh) setTool(sh.dataset.shape);
   });
   $('#optbar').addEventListener('input', onOptInput);
   $('#optbar').addEventListener('change', onOptInput);
@@ -3427,9 +3939,9 @@ function wireUI() {
 async function boot() {
   loadSettings();
   wireUI();
-  renderOptbar(); updateChrome();
+  renderOptbar(); updateChrome(); wireHub();
   if (!LIBS_OK) {
-    $('#empty .card').innerHTML = '<h1>Libraries could not load</h1><p>PDF Desk needs to download its PDF engines once (from cdn.jsdelivr.net). Check your internet connection and reload. After the first successful load they are cached for offline use.</p><button class="btn primary" id="btnReload">Reload</button>';
+    $('#empty .hub').innerHTML = '<h1>Libraries could not load</h1><p>PDF Desk needs to download its PDF engines once (from cdn.jsdelivr.net). Check your internet connection and reload. After the first successful load they are cached for offline use.</p><button class="btn primary" id="btnReload">Reload</button>';
     $('#btnReload').onclick = () => location.reload();
     return;
   }
