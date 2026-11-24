@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#14161b">
 <meta name="description" content="Private, in-browser PDF editor. Files never leave your device.">
 <title>PDF Desk</title>
+<!-- Strict CSP: scripts only from this page (hash-pinned at build time) and the pinned CDN. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'sha256-T7kw/VMdnTqiwEPXVCSxyluxF8U7NbCa5+eUCrkeW2E='; worker-src 'self' blob: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b8cff'/%3E%3Cpath d='M20 12h18l10 10v30H20z' fill='%23fff'/%3E%3Cpath d='M38 12v10h10' fill='%23cddaff'/%3E%3Cpath d='M25 44l14-14 4 4-14 14h-4z' fill='%235b8cff'/%3E%3C/svg%3E">
 <!-- Libraries: exact versions from jsDelivr (byte-identical to npm, so SRI hashes are stable).
@@ -194,6 +197,7 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
   <symbol id="i-front" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="1" fill="currentColor"/><path d="M15 9V4H4v11h5"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><rect x="4" y="4" width="11" height="11" rx="1" fill="currentColor"/><path d="M15 9h5v11H9v-5"/></symbol>
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+  <symbol id="i-find" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
   <symbol id="i-drop" viewBox="0 0 24 24"><path d="M14 4l6 6-9 9H5v-6z"/><path d="M11 7l6 6"/></symbol>
 </svg>
 
@@ -231,6 +235,7 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
   <button class="btn tool" data-tool="field"><svg class="i"><use href="#i-field"/></svg>Field</button>
   <span class="sep"></span>
   <button class="btn tool" data-panel="watermark"><svg class="i"><use href="#i-wm"/></svg>Watermark</button>
+  <button class="btn tool" data-panel="find"><svg class="i"><use href="#i-find"/></svg>Find</button>
   <button class="btn tool" data-panel="pages"><svg class="i"><use href="#i-pages"/></svg>Pages</button>
   <button class="btn tool" data-panel="forms"><svg class="i"><use href="#i-form"/></svg>Forms</button>
   <button class="btn tool" data-panel="export"><svg class="i"><use href="#i-export"/></svg>Export</button>
@@ -258,7 +263,7 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
       <div class="card">
         <svg class="i" style="width:44px;height:44px;color:var(--accent)"><use href="#i-open"/></svg>
         <h1>Open a PDF</h1>
-        <p>Pick a file or drop it here. Everything runs in this browser — your file is never uploaded.</p>
+        <p>Pick a PDF (or photos/images to turn into a PDF), or drop it here. Everything runs in this browser — your file is never uploaded.</p>
         <button class="btn primary" id="btnOpen2">Choose PDF</button>
       </div>
     </div>
@@ -271,7 +276,7 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
 
 <div id="toasts" role="status" aria-live="polite"></div>
 <div id="busy" class="hidden"><div class="box"><div class="spin"></div><div id="busyText">Working…</div></div></div>
-<input type="file" id="filePdf" accept="application/pdf,.pdf" hidden>
+<input type="file" id="filePdf" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp" multiple hidden>
 <input type="file" id="fileMerge" accept="application/pdf,.pdf" hidden>
 <input type="file" id="fileImage" accept="image/png,image/jpeg,image/webp" hidden>
 <input type="file" id="fileFont" accept=".ttf,.otf,font/ttf,font/otf" hidden>
@@ -375,6 +380,9 @@ function hexToRgb01(hex) {
   const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16) || 0;
   return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255];
 }
+/** Only "#rrggbb" is ever interpolated into HTML/attributes (values may come from localStorage). */
+const safeColor = (c, d = '#000000') => (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c) ? c : d);
+const safeNum = (n, d, lo = -1e6, hi = 1e6) => (Number.isFinite(+n) ? clamp(+n, lo, hi) : d);
 const pdfColor = (hex) => { const [r, g, b] = hexToRgb01(hex); return rgb(r, g, b); };
 const rgbToHex = (r, g, b) => '#' + [r, g, b].map(v => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0')).join('');
 
@@ -511,7 +519,32 @@ const LS = {
   set(k, v) { try { localStorage.setItem('pdfdesk.' + k, JSON.stringify(v)); return true; } catch (e) { return false; } },
   del(k) { try { localStorage.removeItem('pdfdesk.' + k); } catch (e) { /* ignore */ } },
 };
-function loadSettings() { state.settings = { ...DEFAULT_SETTINGS, ...LS.get('settings', {}) }; applyTheme(); initOpts(); }
+function loadSettings() {
+  const raw = LS.get('settings', {}) || {}, d = DEFAULT_SETTINGS;
+  state.settings = {
+    font: typeof raw.font === 'string' ? raw.font : d.font,
+    color: safeColor(raw.color, d.color), textColor: safeColor(raw.textColor, d.textColor),
+    width: safeNum(raw.width, d.width, 0.5, 30), fontSize: safeNum(raw.fontSize, d.fontSize, 4, 200),
+    theme: raw.theme === 'light' ? 'light' : 'dark',
+  };
+  applyTheme(); initOpts();
+}
+/** Validates autosaved objects before they re-enter the app (localStorage is untrusted input). */
+const OBJ_TYPES = new Set(['path', 'line', 'arrow', 'rect', 'ellipse', 'whiteout', 'cover', 'text', 'field']);
+function sanitizeObj(o) {
+  if (!o || typeof o !== 'object' || !OBJ_TYPES.has(o.type)) return null;
+  const n = (v, d = 0) => safeNum(v, d, -1e5, 1e5);
+  const out = { id: 'o' + uid(), type: o.type, color: safeColor(o.color, '#000000'), opacity: safeNum(o.opacity, 1, 0, 1) };
+  if (Array.isArray(o.pts)) out.pts = o.pts.slice(0, 20000).map(p => [n(p && p[0]), n(p && p[1])]);
+  for (const k of ['x', 'y', 'w', 'h']) if (o[k] != null) out[k] = n(o[k]);
+  if (['path', 'line', 'arrow'].includes(o.type) && !out.pts) return null;
+  out.width = safeNum(o.width, 1, 0.1, 200);
+  if (o.type === 'path') out.hl = !!o.hl;
+  if (o.type === 'rect' || o.type === 'ellipse') out.fill = !!o.fill;
+  if (o.type === 'text') Object.assign(out, { text: String(o.text || ''), font: String(o.font || 'Helvetica'), size: safeNum(o.size, 16, 3, 500), bold: !!o.bold, italic: !!o.italic, rot: [0, 90, 180, 270].includes(o.rot) ? o.rot : 0 });
+  if (o.type === 'field') Object.assign(out, { name: String(o.name || 'Field').replace(/[^\w\-]/g, '_').slice(0, 80), value: String(o.value || '') });
+  return out;
+}
 function saveSettings() { LS.set('settings', state.settings); }
 function applyTheme() { document.documentElement.dataset.theme = state.settings.theme; }
 
@@ -741,7 +774,8 @@ async function offerRestore(src) {
   const ok = await confirmBox('Restore previous session?', `Found autosaved edits for this file from ${new Date(s.savedAt).toLocaleString()} (${objCount} annotation${objCount === 1 ? '' : 's'}, ${s.pages.length} pages). Restore them?`, 'Restore');
   if (!ok) return;
   commit('Restore session', () => {
-    state.pages = s.pages.filter(p => p.idx < src.info.length).map(p => ({ ...pageModelsFor(src, [p.idx])[0], rot: p.rot || 0, objects: p.objects }));
+    state.pages = s.pages.filter(p => Number.isInteger(p.idx) && p.idx >= 0 && p.idx < src.info.length)
+      .map(p => ({ ...pageModelsFor(src, [p.idx])[0], rot: [0, 90, 180, 270].includes(p.rot) ? p.rot : 0, objects: (Array.isArray(p.objects) ? p.objects : []).map(sanitizeObj).filter(Boolean) }));
   });
 }
 
@@ -1443,11 +1477,11 @@ async function textDialog(init, title) {
     title,
     body: `<div class="col"><textarea id="tdText" rows="4" placeholder="Type text (Hindi supported with a Devanagari font)">${esc(o.text)}</textarea></div>
       <div class="row"><label>Font <select id="tdFont">${fontOptionsHTML(o.font)}</select></label>
-      <label>Size <input id="tdSize" type="number" min="3" max="500" step="1" value="${Math.round(o.size * 10) / 10}" style="width:72px"></label></div>
-      <div class="row"><label>Color <input id="tdColor" type="color" value="${o.color}"></label>
+      <label>Size <input id="tdSize" type="number" min="3" max="500" step="1" value="${Math.round(safeNum(o.size, 16, 3, 500) * 10) / 10}" style="width:72px"></label></div>
+      <div class="row"><label>Color <input id="tdColor" type="color" value="${safeColor(o.color)}"></label>
       <label><input id="tdBold" type="checkbox" ${o.bold ? 'checked' : ''}> Bold</label>
       <label><input id="tdItalic" type="checkbox" ${o.italic ? 'checked' : ''}> Italic</label>
-      <label>Opacity <input id="tdOp" type="range" min="0.1" max="1" step="0.05" value="${o.opacity ?? 1}"></label></div>
+      <label>Opacity <input id="tdOp" type="range" min="0.1" max="1" step="0.05" value="${safeNum(o.opacity, 1, 0, 1)}"></label></div>
       <div id="tdWarn" class="note warn hidden"></div>
       <div class="note">Bold/Italic apply to the built-in fonts. For custom fonts, upload the bold/italic font file separately.</div>`,
     buttons: [{ label: 'Cancel', value: null }, { label: 'OK', primary: true, collect: true }],
@@ -2401,6 +2435,7 @@ async function buildPdf(pms) {
   }
   doc.setProducer('PDF Desk (pdf-lib, in-browser)');
   doc.setModificationDate(new Date());
+  if (state.stripMeta) stripMetadata(doc);
   busyText('Saving PDF…'); await yieldUI();
   return { bytes: await doc.save(), warnings: cache.warnings };
 }
@@ -2633,6 +2668,125 @@ async function applyForms(changes, fontId) {
   finally { busy(false); }
 }
 
+/* ========================== Extra features ========================== */
+/* Page numbers / text stamps: added as normal text objects, so they are movable and undoable. */
+function addTextToPages(pages, { make, pos = 'bottom-center', size = 11, color = '#000000', opacity = 1, font = 'Helvetica', bold = false, label = 'Add text' }) {
+  if (!pages.length) return;
+  const total = state.pages.length;
+  commit(label, () => {
+    for (const p of pages) {
+      const i = state.pages.indexOf(p);
+      const text = make(i + 1, total);
+      if (!text) continue;
+      const o = { id: newId(), type: 'text', rot: 0, text, font, size, color: safeColor(color), bold, italic: false, opacity, x: 0, y: 0 };
+      layoutText(o);
+      const { w, h } = pview(p), m = Math.max(18, size * 1.5);
+      const [v, hz] = pos.split('-');
+      o.x = hz === 'left' ? m : hz === 'right' ? w - m - o.w : (w - o.w) / 2;
+      o.y = v === 'top' ? m * 0.8 : v === 'middle' ? (h - o.h) / 2 : h - m * 0.8 - o.h;
+      p.objects.push(o); touch(p);
+    }
+  });
+}
+function addPageNumbers(fmt, pos, size, startAt, skipFirst) {
+  if (!needDoc()) return;
+  const start = Math.max(1, parseInt(startAt, 10) || 1);
+  const pages = state.pages.filter((_, i) => !(skipFirst && i === 0));
+  const offset = skipFirst ? 1 : 0;
+  addTextToPages(pages, {
+    label: 'Add page numbers', pos, size: safeNum(size, 11, 4, 72),
+    make: (n, total) => {
+      const k = n - offset + start - 1, t = total - offset + start - 1;
+      return { n: `${k}`, of: `Page ${k} of ${t}`, slash: `${k} / ${t}`, dash: `- ${k} -` }[fmt] || `${k}`;
+    }
+  });
+  toast('Page numbers added (they are ordinary text objects — select to move or delete).', 'ok');
+}
+function addStamp(text, pos, size, color, opacity, scope) {
+  if (!needDoc()) return;
+  if (!text.trim()) { toast('Enter the stamp text.', 'warn'); return; }
+  const font = (DEVANAGARI.test(text) || !winAnsiOk(text)) ? [...state.fonts.keys()][0] : 'Helvetica';
+  if (!font) { toast('This text needs a custom font: upload a TTF/OTF in Settings first.', 'error'); return; }
+  const pages = scope === 'all' ? state.pages.slice() : [state.pages[state.current]];
+  addTextToPages(pages, { label: 'Add stamp', make: () => text, pos, size: safeNum(size, 48, 6, 300), color, opacity: safeNum(opacity, 0.3, 0.05, 1), font, bold: font === 'Helvetica' });
+}
+
+/* Images -> PDF (one page per image, A4 sized to the image orientation). */
+const isImageFile = (f) => /^image\/(png|jpe?g|webp)$/i.test(f.type) || /\.(png|jpe?g|webp)$/i.test(f.name);
+async function imagesToPdfFile(files) {
+  busy(true, 'Converting images to PDF…');
+  try {
+    const doc = await PDFDocument.create();
+    for (let i = 0; i < files.length; i++) {
+      busyText(`Adding image ${i + 1}/${files.length}…`); await yieldUI();
+      const { bytes, mime } = await imageFileToBytes(files[i]);
+      const img = mime === 'image/png' ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+      const [W, H] = img.width > img.height ? [842, 595] : [595, 842];
+      const s = Math.min(W / img.width, H / img.height);
+      const page = doc.addPage([W, H]);
+      page.drawImage(img, { x: (W - img.width * s) / 2, y: (H - img.height * s) / 2, width: img.width * s, height: img.height * s });
+    }
+    const name = (files.length === 1 ? files[0].name.replace(/\.\w+$/, '') : 'images') + '.pdf';
+    return new File([await doc.save()], name, { type: 'application/pdf' });
+  } finally { busy(false); }
+}
+async function openFiles(files) {
+  files = [...files];
+  if (!files.length) return;
+  if (files.every(isImageFile)) {
+    try { openMainFile(await imagesToPdfFile(files)); } catch (e) { fail('Image conversion failed', e); }
+    return;
+  }
+  const pdf = files.find(f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name));
+  if (!pdf) { toast('Choose a PDF or PNG/JPG images.', 'warn'); return; }
+  if (files.length > 1) toast('Opened the first PDF. Use Pages → Merge to add more.', 'warn');
+  openMainFile(pdf);
+}
+
+/* Find text across all pages and optionally highlight every match. */
+const findState = { q: '', results: [] };
+async function findText(q) {
+  findState.q = q; findState.results = [];
+  const nq = q.trim().toLowerCase();
+  if (nq.length < 1) return [];
+  busy(true, 'Searching…');
+  try {
+    for (let i = 0; i < state.pages.length; i++) {
+      if (i % 10 === 0) { busyText(`Searching page ${i + 1}/${state.pages.length}…`); await yieldUI(); }
+      const p = state.pages[i];
+      let items; try { items = await textItemsView(p); } catch (e) { continue; }
+      for (const it of items) {
+        const s = it.str.toLowerCase();
+        for (let k = s.indexOf(nq); k >= 0; k = s.indexOf(nq, k + nq.length)) findState.results.push({ pageId: p.id, it, k, len: nq.length });
+      }
+    }
+  } finally { busy(false); }
+  return findState.results;
+}
+function highlightFound(color) {
+  const res = findState.results; if (!res.length) return;
+  commit(`Highlight ${res.length} match${res.length > 1 ? 'es' : ''}`, () => {
+    for (const r of res) {
+      const p = pageById(r.pageId); if (!p) continue;
+      const b = r.it.box, L = r.it.str.length || 1;
+      let pts, width;
+      if (Math.abs(r.it.angle) < 0.05) { // horizontal: highlight just the matched characters (proportional estimate)
+        const x1 = b.x + b.w * (r.k / L), x2 = b.x + b.w * ((r.k + r.len) / L);
+        pts = [[x1, b.y + b.h / 2], [x2, b.y + b.h / 2]]; width = b.h;
+      } else { pts = [[b.x + b.w / 2, b.y], [b.x + b.w / 2, b.y + b.h]]; width = b.w; }
+      p.objects.push({ id: newId(), type: 'path', hl: true, pts, width, color: safeColor(color, '#ffe600'), opacity: 0.4 });
+      touch(p);
+    }
+  });
+  toast(`Highlighted ${res.length} match${res.length > 1 ? 'es' : ''}.`, 'ok');
+}
+
+/* Privacy: strip document metadata on export. */
+function stripMetadata(doc) {
+  doc.setTitle(''); doc.setAuthor(''); doc.setSubject(''); doc.setKeywords([]); doc.setCreator(''); doc.setProducer('');
+  try { doc.catalog.delete(PDFName.of('Metadata')); } catch (e) { /* ignore */ }
+}
+
 /* ================================= UI ================================= */
 function onDocChanged() {
   if (state.sel && !findObj(state.sel.pageId, state.sel.objId)) state.sel = null;
@@ -2665,9 +2819,9 @@ function renderOptbar() {
   const ob = $('#optbar');
   const s = selected();
   const parts = [];
-  const colorIn = (v) => `<label>Color <input type="color" data-k="color" value="${v}"></label>`;
-  const widthIn = (v, max = 30) => `<label>Width <input type="range" data-k="width" min="0.5" max="${max}" step="0.5" value="${v}"></label>`;
-  const opIn = (v) => `<label>Opacity <input type="range" data-k="opacity" min="0.1" max="1" step="0.05" value="${v ?? 1}"></label>`;
+  const colorIn = (v) => `<label>Color <input type="color" data-k="color" value="${safeColor(v)}"></label>`;
+  const widthIn = (v, max = 30) => `<label>Width <input type="range" data-k="width" min="0.5" max="${max}" step="0.5" value="${safeNum(v, 3, 0.5, 60)}"></label>`;
+  const opIn = (v) => `<label>Opacity <input type="range" data-k="opacity" min="0.1" max="1" step="0.05" value="${safeNum(v, 1, 0, 1)}"></label>`;
   const fillIn = (v) => `<label><input type="checkbox" data-k="fill" ${v ? 'checked' : ''}> Fill</label>`;
   const act = (a, icon, label, cls = '') => `<button class="btn sm ${cls}" data-act="${a}" title="${label}"><svg class="i"><use href="#i-${icon}"/></svg><span class="hide-sm">${label}</span></button>`;
   if (s) {
@@ -2687,7 +2841,7 @@ function renderOptbar() {
       if (t === 'rect' || t === 'ellipse') parts.push(fillIn(o.fill));
     } else if (t === 'text') {
       parts.push(`<label>Font <select data-k="font">${fontOptionsHTML(o.font)}</select></label>`,
-        `<label>Size <input type="number" data-k="size" min="3" max="500" value="${o.size}" style="width:64px"></label>`, colorIn(o.color));
+        `<label>Size <input type="number" data-k="size" min="3" max="500" value="${safeNum(o.size, 16, 3, 500)}" style="width:64px"></label>`, colorIn(o.color));
     } else if (t === 'whiteout') parts.push(colorIn(o.color), '<span class="hint">Drag to cover content with a solid box.</span>');
     if (TOOL_HINTS[t]) parts.push(`<span class="hint">${TOOL_HINTS[t]}</span>`);
   }
@@ -2734,19 +2888,19 @@ function openPanel(name) {
   if (state.panel) renderPanel();
 }
 function closePanelOnPhone() { if (window.innerWidth <= 760 && state.panel) openPanel(state.panel); }
-const PANEL_TITLES = { watermark: 'Watermark removal', pages: 'Pages', forms: 'Form fields', export: 'Save & export', settings: 'Settings' };
+const PANEL_TITLES = { find: 'Find text', watermark: 'Watermark', pages: 'Pages', forms: 'Form fields', export: 'Save & export', settings: 'Settings' };
 function renderPanel() {
   const name = state.panel; if (!name) return;
   $('#panelTitle').textContent = PANEL_TITLES[name];
   const body = $('#panelBody');
-  const fn = { watermark: panelWatermark, pages: panelPages, forms: panelForms, export: panelExport, settings: panelSettings }[name];
+  const fn = { find: panelFind, watermark: panelWatermark, pages: panelPages, forms: panelForms, export: panelExport, settings: panelSettings }[name];
   fn(body);
 }
 
 function panelWatermark(b) {
   const w = state.wm, c = state.cover, tab = w.tab;
   b.innerHTML = `<div class="note warn">Use only on PDFs you own or have the rights to edit.</div>
-  <div class="tabs">${[['auto', 'Auto (text)'], ['region', 'Region'], ['cover', 'Cover']].map(([k, l]) => `<button class="btn ${tab === k ? 'active' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
+  <div class="tabs">${[['auto', 'Auto'], ['region', 'Region'], ['cover', 'Cover'], ['add', 'Add stamp']].map(([k, l]) => `<button class="btn ${tab === k ? 'active' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
   <div id="wmBody"></div>
   <div class="row" style="margin-top:14px"><button class="btn outline" id="wmUndo" ${history.undo.length ? '' : 'disabled'}><svg class="i"><use href="#i-undo"/></svg>Undo last action</button></div>`;
   const wb = $('#wmBody', b);
@@ -2774,9 +2928,19 @@ function panelWatermark(b) {
     <div class="note">Large background images are kept unless most of the image is inside your rectangle. If the watermark is baked into a scan, nothing can be separated — use Cover.</div>`;
     $('#wmAll', wb).onchange = e => { w.regionAll = e.target.checked; };
     $('#wmDraw', wb).onclick = () => { if (!needDoc()) return; setTool('wmregion'); closePanelOnPhone(); toast('Drag a rectangle over the watermark.'); };
+  } else if (tab === 'add') {
+    wb.innerHTML = `<p>Add your own watermark or stamp text (e.g. DRAFT, COPY, your name). It is added as normal text you can move, edit or delete.</p>
+    <div class="col"><label>Text</label><input type="text" id="stText" value="DRAFT"></div>
+    <div class="row"><label>Size <input type="number" id="stSz" value="60" min="6" max="300" style="width:70px"></label>
+      <label>Color <input type="color" id="stCol" value="#9e9e9e"></label>
+      <label>Opacity <input type="range" id="stOp" min="0.05" max="1" step="0.05" value="0.3"></label></div>
+    <div class="row"><label>Position <select id="stPos"><option value="middle-center">Centre</option><option value="top-center">Top</option><option value="bottom-center">Bottom</option><option value="top-right">Top right</option><option value="bottom-right">Bottom right</option></select></label>
+      <label>Pages <select id="stScope"><option value="all">All pages</option><option value="current">Current page</option></select></label></div>
+    <button class="btn primary" id="stGo" style="width:100%">Add stamp</button>`;
+    $('#stGo', wb).onclick = () => addStamp($('#stText', wb).value, $('#stPos', wb).value, $('#stSz', wb).value, $('#stCol', wb).value, $('#stOp', wb).value, $('#stScope', wb).value);
   } else {
     wb.innerHTML = `<div class="note err"><b>Cover is not removal.</b> It paints a patch over the area. The watermark is still inside the file underneath and can be revealed by other software.</div>
-    <div class="row"><label>Color <input type="color" id="cvColor" value="${c.color}"></label>
+    <div class="row"><label>Color <input type="color" id="cvColor" value="${safeColor(c.color, '#ffffff')}"></label>
       <button class="btn sm outline" id="cvDrop"><svg class="i"><use href="#i-drop"/></svg>Pick from page</button></div>
     <label class="row"><input type="checkbox" id="cvAuto" ${c.auto ? 'checked' : ''}> Auto-sample color from the surrounding background</label>
     <label class="row"><input type="checkbox" id="cvBlur" ${c.blur ? 'checked' : ''}> Blur instead of solid color (softens the area)</label>
@@ -2798,6 +2962,26 @@ function panelWatermark(b) {
   $('#wmUndo', b).onclick = undo;
 }
 
+function panelFind(b) {
+  b.innerHTML = `<div class="row"><input type="text" id="fdQ" placeholder="Search text in the PDF" value="${esc(findState.q)}" style="flex:1"><button class="btn primary" id="fdGo" title="Search"><svg class="i"><use href="#i-find"/></svg></button></div>
+    <div id="fdRes"></div>`;
+  const show = () => {
+    const res = findState.results, box = $('#fdRes', b);
+    if (!findState.q) { box.innerHTML = '<div class="note">Searches the real text of every page. Scanned pages have no text to search.</div>'; return; }
+    if (!res.length) { box.innerHTML = '<div class="note">No matches.</div>'; return; }
+    const byPage = new Map(); for (const r of res) byPage.set(r.pageId, (byPage.get(r.pageId) || 0) + 1);
+    box.innerHTML = `<div class="row"><b>${res.length}</b>&nbsp;match${res.length > 1 ? 'es' : ''} on ${byPage.size} page${byPage.size > 1 ? 's' : ''}</div>
+      <div class="row"><label>Color <input type="color" id="fdCol" value="#ffe600"></label><button class="btn outline" id="fdHl">Highlight all</button></div>
+      ${[...byPage].map(([id, n]) => `<button class="btn sm outline" data-goto="${esc(id)}" style="margin:0 6px 6px 0">Page ${pageIndex(id) + 1} (${n})</button>`).join('')}`;
+    $('#fdHl', box).onclick = () => highlightFound($('#fdCol', box).value);
+    $$('[data-goto]', box).forEach(x => x.onclick = () => { goToPage(pageIndex(x.dataset.goto)); closePanelOnPhone(); });
+  };
+  const go = async () => { if (!needDoc()) return; await findText($('#fdQ', b).value); show(); };
+  $('#fdGo', b).onclick = go;
+  $('#fdQ', b).onkeydown = e => { if (e.key === 'Enter') go(); };
+  show();
+}
+
 function panelPages(b) {
   const n = state.checked.size;
   const cur = state.pages.length ? state.current + 1 : 0;
@@ -2810,6 +2994,12 @@ function panelPages(b) {
     <button class="btn outline danger" data-pageop="del"><svg class="i"><use href="#i-trash"/></svg>Delete</button></div>
     <div class="row"><label>Move to position <input type="number" id="pgMoveTo" min="1" max="${state.pages.length}" value="1" style="width:70px"></label><button class="btn outline" id="pgMove">Move</button></div>
     <div class="note">Tip: drag thumbnails by their grip handle to reorder.</div></div>
+  <div class="psec"><h3>Page numbers</h3>
+    <div class="row"><label>Style <select id="pnFmt"><option value="n">1</option><option value="of">Page 1 of N</option><option value="slash">1 / N</option><option value="dash">- 1 -</option></select></label>
+    <label>Position <select id="pnPos"><option value="bottom-center">Bottom centre</option><option value="bottom-right">Bottom right</option><option value="bottom-left">Bottom left</option><option value="top-center">Top centre</option><option value="top-right">Top right</option></select></label></div>
+    <div class="row"><label>Size <input type="number" id="pnSize" value="11" min="4" max="72" style="width:60px"></label><label>Start at <input type="number" id="pnStart" value="1" min="1" style="width:60px"></label>
+    <label><input type="checkbox" id="pnSkip"> Skip first page</label></div>
+    <button class="btn outline" id="pnGo">Add page numbers</button></div>
   <div class="psec"><h3>Extract pages</h3><div class="row"><input type="text" id="pgExtract" placeholder="e.g. 1-3, 5" style="flex:1"><button class="btn outline" id="pgExtractGo">Download</button></div></div>
   <div class="psec"><h3>Merge another PDF</h3><div class="row"><label>Insert after page <input type="number" id="pgMergeAt" min="0" max="${state.pages.length}" value="${state.pages.length}" style="width:70px"></label><button class="btn outline" id="pgMerge">Choose PDF…</button></div><div class="note">0 = insert at the beginning.</div></div>
   <div class="psec"><h3>Split into several PDFs</h3>
@@ -2822,6 +3012,7 @@ function panelPages(b) {
     const target = state.pages[to];
     movePages(ids, ids.has(target && target.id) ? state.pages.indexOf(target) : (to > state.current ? to + 1 : to));
   };
+  $('#pnGo', b).onclick = () => addPageNumbers($('#pnFmt', b).value, $('#pnPos', b).value, $('#pnSize', b).value, $('#pnStart', b).value, $('#pnSkip', b).checked);
   $('#pgExtractGo', b).onclick = () => extractRange($('#pgExtract', b).value);
   $('#pgMerge', b).onclick = () => mergePdf(parseInt($('#pgMergeAt', b).value, 10));
   $('#pgSplitMode', b).onchange = e => { const t = $('#pgSplitText', b); t.classList.toggle('hidden', e.target.value === 'each'); t.placeholder = e.target.value === 'every' ? 'Pages per file, e.g. 2' : 'e.g. 1-3, 4-6, 7-'; };
@@ -2875,13 +3066,15 @@ async function panelForms(b) {
 
 function panelExport(b) {
   const s = LS.get('session');
-  b.innerHTML = `<div class="psec"><h3>PDF</h3><button class="btn primary" id="exPdf" style="width:100%"><svg class="i"><use href="#i-save"/></svg>Download ${esc(baseName())}_edited.pdf</button></div>
+  b.innerHTML = `<div class="psec"><h3>PDF</h3><button class="btn primary" id="exPdf" style="width:100%"><svg class="i"><use href="#i-save"/></svg>Download ${esc(baseName())}_edited.pdf</button>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="exStrip" ${state.stripMeta ? 'checked' : ''}> Remove hidden metadata (title, author, creator app, XMP) for privacy</label></div>
   <div class="psec"><h3>Pages as images</h3>
     <div class="row"><label>Format <select id="exFmt"><option value="png">PNG</option><option value="jpg">JPG</option></select></label>
     <label>Quality <select id="exScale"><option value="1">72 dpi</option><option value="2" selected>144 dpi</option><option value="3">216 dpi</option><option value="4.17">300 dpi</option></select></label></div>
     <div class="col"><input type="text" id="exRange" placeholder="Pages (blank = all), e.g. 1-3"></div>
     <button class="btn outline" id="exImg" style="width:100%">Export images (ZIP)</button></div>
   <div class="psec"><h3>Autosave</h3><div class="note">Your annotations and page changes are autosaved in this browser as metadata only — never the PDF itself. Reopen the same file to restore them. Images/signatures, merges and watermark removals are not autosaved; download to keep them.${s ? `<br>Last autosave: ${new Date(s.savedAt).toLocaleString()} (${esc(s.name)})` : ''}</div></div>`;
+  $('#exStrip', b).onchange = e => { state.stripMeta = e.target.checked; };
   $('#exPdf', b).onclick = downloadPdf;
   $('#exImg', b).onclick = () => exportImages($('#exFmt', b).value, +$('#exScale', b).value, $('#exRange', b).value);
 }
@@ -2891,11 +3084,11 @@ function panelSettings(b) {
   const fonts = [...state.fonts.values()];
   b.innerHTML = `<div class="psec"><h3>Defaults</h3>
     <div class="col"><label>Default font</label><select id="stFont">${fontOptionsHTML(s.font)}</select></div>
-    <div class="row"><label>Text color <input type="color" id="stTColor" value="${s.textColor}"></label><label>Font size <input type="number" id="stSize" min="4" max="200" value="${s.fontSize}" style="width:64px"></label></div>
-    <div class="row"><label>Pen color <input type="color" id="stColor" value="${s.color}"></label><label>Pen width <input type="number" id="stWidth" min="0.5" max="30" step="0.5" value="${s.width}" style="width:64px"></label></div>
+    <div class="row"><label>Text color <input type="color" id="stTColor" value="${safeColor(s.textColor)}"></label><label>Font size <input type="number" id="stSize" min="4" max="200" value="${safeNum(s.fontSize, 16)}" style="width:64px"></label></div>
+    <div class="row"><label>Pen color <input type="color" id="stColor" value="${safeColor(s.color)}"></label><label>Pen width <input type="number" id="stWidth" min="0.5" max="30" step="0.5" value="${safeNum(s.width, 3)}" style="width:64px"></label></div>
     <button class="btn outline" id="stApply">Save defaults</button></div>
   <div class="psec"><h3>Appearance</h3><label class="row"><input type="checkbox" id="stTheme" ${s.theme === 'light' ? 'checked' : ''}> Light theme</label></div>
-  <div class="psec"><h3>Fonts on this device</h3>${fonts.length ? fonts.map(f => `<div class="row"><span style="flex:1">${esc(f.name)}</span><button class="btn sm danger" data-delfont="${f.id}">Remove</button></div>`).join('') : '<p class="note">No custom fonts yet. Upload a TTF/OTF (e.g. Noto Sans Devanagari for Hindi).</p>'}
+  <div class="psec"><h3>Fonts on this device</h3>${fonts.length ? fonts.map(f => `<div class="row"><span style="flex:1">${esc(f.name)}</span><button class="btn sm danger" data-delfont="${esc(f.id)}">Remove</button></div>`).join('') : '<p class="note">No custom fonts yet. Upload a TTF/OTF (e.g. Noto Sans Devanagari for Hindi).</p>'}
     <button class="btn outline" id="stUpFont">Upload font…</button></div>
   <div class="psec"><h3>Privacy</h3><div class="note">Files are processed only in this browser. Nothing is uploaded. Settings, fonts, a saved signature and annotation autosaves are stored locally.</div>
     <div class="row"><button class="btn outline" id="stNotice">Show usage notice</button><button class="btn outline danger" id="stClear">Clear all local data</button></div></div>`;
@@ -3020,7 +3213,7 @@ function pageOp(op) {
 function wireUI() {
   const pick = () => { const i = $('#filePdf'); i.value = ''; i.click(); };
   $('#btnOpen').onclick = pick; $('#btnOpen2').onclick = pick;
-  $('#filePdf').onchange = (e) => { const f = e.target.files[0]; if (f) openMainFile(f); };
+  $('#filePdf').onchange = (e) => openFiles(e.target.files);
   $('#btnSave').onclick = downloadPdf;
   $('#btnUndo').onclick = undo; $('#btnRedo').onclick = redo;
   $('#btnZoomIn').onclick = () => setZoom(state.zoom * 1.2);
@@ -3064,8 +3257,7 @@ function wireUI() {
   window.addEventListener('dragover', (e) => e.preventDefault());
   window.addEventListener('drop', (e) => {
     e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragover');
-    const f = e.dataTransfer && e.dataTransfer.files[0]; if (!f) return;
-    if (/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)) openMainFile(f); else toast('Drop a PDF file.', 'warn');
+    if (e.dataTransfer && e.dataTransfer.files.length) openFiles(e.dataTransfer.files);
   });
 
   // Keyboard shortcuts
@@ -3094,7 +3286,8 @@ async function boot() {
   wireUI();
   renderOptbar(); updateChrome();
   if (!LIBS_OK) {
-    $('#empty .card').innerHTML = '<h1>Libraries could not load</h1><p>PDF Desk needs to download its PDF engines once (from cdn.jsdelivr.net). Check your internet connection and reload. After the first successful load they are cached for offline use.</p><button class="btn primary" onclick="location.reload()">Reload</button>';
+    $('#empty .card').innerHTML = '<h1>Libraries could not load</h1><p>PDF Desk needs to download its PDF engines once (from cdn.jsdelivr.net). Check your internet connection and reload. After the first successful load they are cached for offline use.</p><button class="btn primary" id="btnReload">Reload</button>';
+    $('#btnReload').onclick = () => location.reload();
     return;
   }
   try { for (const f of await idbFonts('all')) await registerFont(f, false); } catch (e) { console.warn('fonts', e); }
