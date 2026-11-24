@@ -20,6 +20,7 @@ Everything runs in your browser. No server, no upload, no login.
 - pdf.js runs with `isEvalSupported: false` (mitigates malicious-font exploits such as CVE-2024-4367).
 - All file names, form field names, search text and stored settings are escaped/validated before being shown.
 - Tested: XSS via file name, form fields, search, annotations and tampered localStorage; 9 corrupted/fuzzed PDFs (no crash).
+
 Files: `index.html` (the whole app), `manifest.json`, `sw.js`, `icon-192.png`, `icon-512.png`.
 
 ## Deploy on GitHub Pages (10 steps)
