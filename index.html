@@ -7,7 +7,7 @@
 <meta name="description" content="Private, in-browser PDF editor. Files never leave your device.">
 <title>PDF Desk</title>
 <!-- Strict CSP: scripts only from this page (hash-pinned at build time) and the pinned CDN. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-9jBp8s4JoqQq0oa/UxKuKORrggnLOeeBBg2BEZqgjBI='; worker-src 'self' blob:; connect-src 'self' blob: data:; img-src 'self' data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-ILJ4xBt8doM9wb+yKo40XJGOrKbJQ6nBxiSFQ7NTtak='; worker-src 'self' blob:; connect-src 'self' blob: data:; img-src 'self' data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b8cff'/%3E%3Cpath d='M20 12h18l10 10v30H20z' fill='%23fff'/%3E%3Cpath d='M38 12v10h10' fill='%23cddaff'/%3E%3Cpath d='M25 44l14-14 4 4-14 14h-4z' fill='%235b8cff'/%3E%3C/svg%3E">
@@ -17,7 +17,6 @@
 <!-- fontkit's Indic (Devanagari) shaper uses a transpiled generator that needs regeneratorRuntime. -->
 <script src="vendor/runtime.js" integrity="sha384-IBJ76nCigSR9ge55kUlGdv1kvy2bkM0kQJl6RpRnKxN2rEU7h5lZc4EgzdSzcTwa"></script>
 <script src="vendor/fontkit.umd.min.js" integrity="sha384-2p6U+1mmqF10USehFeRiyG2ESG9FwIqN+jxULn5w9jjQIihSn9Pt13dVCn/Hawjn"></script>
-<script src="vendor/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e"></script>
 <script src="vendor/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"></script>
 <style>
 :root{
@@ -398,6 +397,12 @@ label.row input[type=checkbox]{margin-top:3px;flex:none}
    Rendering · Objects · Tools · Watermark · Page ops · Export · Forms · UI
    ===================================================================== */
 
+/* Clickjacking guard: never run inside someone else's page (GitHub Pages cannot send frame-ancestors headers). */
+if (window.top !== window.self) {
+  document.documentElement.innerHTML = '<body style="font:16px system-ui;padding:24px;background:#fff;color:#000">For your safety this app does not run inside another page. Please open it directly in the browser.</body>';
+  throw new Error('framed');
+}
+
 /* ============================ Utilities ============================ */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -405,11 +410,16 @@ const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const LIBS_OK = typeof PDFLib !== 'undefined' && typeof pdfjsLib !== 'undefined';
+let LIBS_OK = typeof PDFLib !== 'undefined';
+const PDFLIB_OK = LIBS_OK;
 const { PDFDocument, StandardFonts, rgb, degrees, PDFName, PDFDict, PDFArray, PDFRef, PDFNumber,
-  PDFRawStream, PDFString, PDFHexString, LineCapStyle, BlendMode } = LIBS_OK ? PDFLib : {};
-const PDFJS_WORKER = 'vendor/pdf.worker.min.js';
-if (LIBS_OK) pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  PDFRawStream, PDFString, PDFHexString, LineCapStyle, BlendMode } = PDFLIB_OK ? PDFLib : {};
+/* PDF.js 4.10.38 (patched line) is an ES module: load it with a same-origin dynamic import. */
+const pdfjsReady = import('./vendor/pdfjs/pdf.module.js').then(m => {
+  window.pdfjsLib = m;
+  m.GlobalWorkerOptions.workerSrc = new URL('vendor/pdfjs/pdf.worker.module.js', location.href).href;
+  return m;
+}).catch(e => { LIBS_OK = false; console.warn('PDF engine failed to load', e); return null; });
 
 function toast(msg, type = 'info', ms) {
   const el = document.createElement('div');
@@ -793,6 +803,8 @@ async function askPassword(retry) {
 /** Open bytes with pdf.js (handles passwords). Returns {doc, password}. */
 async function openPdfJs(bytes) {
   let password, cancelled = false;
+  await pdfjsReady;
+  if (!window.pdfjsLib) throw new Error('The PDF engine did not load. Reload the page once.');
   const task = pdfjsLib.getDocument({ data: bytes.slice(), isEvalSupported: false });
   task.onPassword = async (update, reason) => {
     const wasBusy = busyDepth > 0; if (wasBusy) busy(false);
@@ -1261,7 +1273,47 @@ const STD_FONTS = {
   Courier: { css: '"Courier New", Courier, monospace', pdf: ['Courier', 'CourierBold', 'CourierOblique', 'CourierBoldOblique'] },
 };
 const DEVANAGARI = /[ऀ-ॿ꣠-ꣿ]/;
+/* Built-in Unicode font set (Noto Sans + Noto Sans Devanagari + Noto Sans Math, SIL OFL, bundled in ./vendor/fonts).
+   One option that covers Hindi, English, Greek and maths symbols; each character is written with the font that has it. */
+const UNI = {
+  css: '"UF_uni_sans","UF_uni_deva","UF_uni_math","UF_uni_sym",sans-serif', ready: null, bytes: {}, fk: {},
+  files: { sansR: 'NotoSans-Regular.ttf', sansB: 'NotoSans-Bold.ttf', devaR: 'NotoSansDevanagari-Regular.ttf', devaB: 'NotoSansDevanagari-Bold.ttf', math: 'NotoSansMath-Regular.ttf', sym: 'NotoSansSymbols2-Regular.ttf' },
+  faces: [['UF_uni_sans', 'sansR', '400'], ['UF_uni_sans', 'sansB', '700'], ['UF_uni_deva', 'devaR', '400'], ['UF_uni_deva', 'devaB', '700'], ['UF_uni_math', 'math', '400'], ['UF_uni_sym', 'sym', '400']],
+};
+function ensureUniFonts() {
+  if (!UNI.ready) UNI.ready = (async () => {
+    for (const [k, f] of Object.entries(UNI.files)) {
+      const res = await fetch('vendor/fonts/' + f);
+      if (!res.ok) throw new Error('built-in font missing: ' + f);
+      UNI.bytes[k] = new Uint8Array(await res.arrayBuffer());
+      UNI.fk[k] = fontkit.create(UNI.bytes[k]);
+    }
+    for (const [fam, k, w] of UNI.faces) { const face = new FontFace(fam, UNI.bytes[k], { weight: w }); await face.load(); document.fonts.add(face); }
+    // text boxes measured before the fonts were ready need their real size
+    for (const p of state.pages) for (const o of p.objects) if (o.type === 'text' && o.font === 'uni') layoutText(o);
+    redrawOverlays();
+  })().catch(e => { UNI.ready = null; throw e; });
+  return UNI.ready;
+}
+const usesUni = (pages) => pages.some(p => p.objects.some(o => o.type === 'text' && o.font === 'uni'));
+const needsUnicode = (t) => DEVANAGARI.test(t) || !winAnsiOk(t);
+/** Split text into runs, each written with the first built-in font that has the character. */
+function uniRuns(text, covers) {
+  const runs = []; let cur = null;
+  const neutral = (cp) => cp === 0x20 || cp === 0xA0 || (cp >= 0x21 && cp <= 0x2F) || (cp >= 0x30 && cp <= 0x39) || (cp >= 0x3A && cp <= 0x40) || (cp >= 0x5B && cp <= 0x60) || (cp >= 0x7B && cp <= 0x7E);
+  for (const ch of text) {
+    const cp = ch.codePointAt(0);
+    let key;
+    if (cur && (cp === 0x200C || cp === 0x200D)) key = cur.key;                       // joiners stay inside the word
+    else if (cur && neutral(cp) && covers(cur.key, cp)) key = cur.key;                // spaces/digits/punctuation stay in the current run
+    else key = ['sans', 'deva', 'math', 'sym'].find(k => covers(k, cp)) || 'sans';
+    if (!cur || cur.key !== key) { cur = { key, text: '' }; runs.push(cur); }
+    cur.text += ch;
+  }
+  return runs;
+}
 function fontMeta(name) {
+  if (name === 'uni') return { std: false, uni: true, css: UNI.css, label: 'Hindi + English + symbols (built-in)' };
   if (STD_FONTS[name]) return { std: true, css: STD_FONTS[name].css, label: name };
   const f = state.fonts.get(name);
   if (f) return { std: false, css: `"${f.family}"`, label: f.name };
@@ -1270,7 +1322,7 @@ function fontMeta(name) {
 function cssFont(o) {
   const m = fontMeta(o.font);
   // Custom fonts have no embedded bold/italic variants, so don't fake them in the preview.
-  return `${m.std && o.italic ? 'italic ' : ''}${m.std && o.bold ? 'bold ' : ''}${o.size}px ${m.css}`;
+  return `${m.std && o.italic ? 'italic ' : ''}${(m.std || m.uni) && o.bold ? 'bold ' : ''}${o.size}px ${m.css}`;
 }
 const mctx = document.createElement('canvas').getContext('2d');
 function textDims(o) {
@@ -1513,6 +1565,7 @@ async function uploadFont(file) {
 }
 function fontOptionsHTML(selectedName) {
   const opts = Object.keys(STD_FONTS).map(n => `<option value="${n}" ${n === selectedName ? 'selected' : ''}>${n}</option>`);
+  opts.push(`<option value="uni" ${selectedName === 'uni' ? 'selected' : ''}>Hindi + English + symbols (built-in)</option>`);
   for (const [id, f] of state.fonts) opts.push(`<option value="${id}" ${id === selectedName ? 'selected' : ''}>${esc(f.name)}</option>`);
   opts.push('<option value="__upload">Upload TTF/OTF font…</option>');
   return opts.join('');
@@ -1752,9 +1805,10 @@ async function textDialog(init, title) {
       const check = () => {
         const txt = $('#tdText', r).value, f = $('#tdFont', r).value, w = $('#tdWarn', r);
         let msg = '';
-        if (fontMeta(f).std && DEVANAGARI.test(txt)) msg = 'Hindi/Devanagari text needs a Devanagari font. Choose "Upload TTF/OTF font…" and pick e.g. Noto Sans Devanagari or Mangal.';
-        else if (fontMeta(f).std && !winAnsiOk(txt)) msg = 'Some characters are not supported by the built-in fonts. Upload a TTF/OTF font that contains them.';
-        w.textContent = msg; w.classList.toggle('hidden', !msg);
+        if (fontMeta(f).std && needsUnicode(txt)) {
+          $('#tdFont', r).value = 'uni'; msg = 'Switched to the built-in "Hindi + English + symbols" font so every character shows.';
+        }
+        w.textContent = msg; w.classList.toggle('hidden', !msg); w.classList.remove('warn');
       };
       $('#tdText', r).addEventListener('input', check);
       $('#tdFont', r).addEventListener('change', async (ev) => {
@@ -1768,10 +1822,10 @@ async function textDialog(init, title) {
     },
     collect: (r) => {
       const text = $('#tdText', r).value.replace(/\r/g, '');
-      const font = $('#tdFont', r).value;
+      let font = $('#tdFont', r).value;
       if (!text.trim()) { toast('Enter some text.', 'warn'); return undefined; }
       if (font === '__upload') { toast('Pick a font.', 'warn'); return undefined; }
-      if (fontMeta(font).std && !winAnsiOk(text)) { toast('Choose a font that supports these characters (upload a TTF/OTF).', 'error'); return undefined; }
+      if (fontMeta(font).std && needsUnicode(text)) font = 'uni';
       return { text, font, size: clamp(+$('#tdSize', r).value || 16, 3, 500), color: $('#tdColor', r).value, bold: $('#tdBold', r).checked, italic: $('#tdItalic', r).checked, opacity: +$('#tdOp', r).value };
     }
   });
@@ -1994,9 +2048,9 @@ async function replaceTextAt(p, x, y) {
     buttons: [{ label: 'Cancel', value: null }, { label: 'Replace', primary: true, collect: true }],
     onOpen: (r) => $('#rpFont', r).addEventListener('change', async (ev) => { if (ev.target.value === '__upload') { const id = await pickFontFile(); ev.target.innerHTML = fontOptionsHTML(id || 'Helvetica'); } }),
     collect: (r) => {
-      const font = $('#rpFont', r).value, text = $('#rpText', r).value;
+      let font = $('#rpFont', r).value; const text = $('#rpText', r).value;
       if (font === '__upload') return undefined;
-      if (fontMeta(font).std && !winAnsiOk(text)) { toast('Choose a font that supports these characters (upload a TTF/OTF).', 'error'); return undefined; }
+      if (fontMeta(font).std && needsUnicode(text)) font = 'uni';
       return { text, font, size: clamp(+$('#rpSize', r).value || it.fh, 3, 300), color: $('#rpColor', r).value, bg: $('#rpBg', r).value, del: $('#rpDel', r).checked, bold: $('#rpBold', r).checked };
     }
   });
@@ -2777,6 +2831,7 @@ async function buildPdf(pms) {
     doc.setTitle(baseName());
   }
   doc.registerFontkit(fontkit);
+  if (usesUni(pms)) await ensureUniFonts();
   const cache = { fonts: new Map(), images: new Map(), warnings: [] };
   for (let k = 0; k < pms.length; k++) {
     const pm = pms[k], pg = libPages[k], { R } = pview(pm);
@@ -2807,6 +2862,19 @@ async function embedFontFor(doc, o, cache) {
     cache.fonts.set(o.font, await doc.embedFont(state.fonts.get(o.font).bytes, { subset: true }));
   }
   return cache.fonts.get(o.font);
+}
+/** Embeds the 3 built-in fonts (subset) into this PDF and returns helpers for run-by-run writing. */
+async function embedUni(doc, cache, bold) {
+  await ensureUniFonts();
+  // (the symbols font is embedded whole: pdf-lib's subsetter drops some of its glyphs)
+  const get = async (k) => { if (!cache.fonts.has('uni-' + k)) cache.fonts.set('uni-' + k, await doc.embedFont(UNI.bytes[k], { subset: k !== 'sym' })); return cache.fonts.get('uni-' + k); };
+  const kind = { sans: bold ? 'sansB' : 'sansR', deva: bold ? 'devaB' : 'devaR', math: 'math', sym: 'sym' };
+  const pdf = { sans: await get(kind.sans), deva: await get(kind.deva), math: await get(kind.math), sym: await get(kind.sym) };
+  const covers = (k, cp) => UNI.fk[kind[k]].hasGlyphForCodePoint(cp);
+  return {
+    runs: (text) => uniRuns(text, covers).map(r => ({ f: pdf[r.key], text: r.text })),
+    width: (text, size) => uniRuns(text, covers).reduce((w, r) => w + pdf[r.key].widthOfTextAtSize(r.text, size), 0),
+  };
 }
 async function embedImageFor(doc, id, cache) {
   if (!cache.images.has(id)) {
@@ -2860,6 +2928,20 @@ async function drawPdfObjects(doc, pg, pm, R, cache, pageNo) {
           break;
         }
         case 'text': {
+          if (o.font === 'uni') {
+            const U = await embedUni(doc, cache, !!o.bold);
+            String(o.text).split('\n').forEach((line, i) => {
+              if (!line) return;
+              let xoff = 0;
+              for (const r of U.runs(line)) {
+                const [vx, vy] = angPoint(o, ...localToView(o, xoff, i * o.size * 1.2 + o.size * 0.9));
+                const [x, y] = P(vx, vy);
+                pg.drawText(r.text, { x, y, size: o.size, font: r.f, color: pdfColor(o.color), opacity: o.opacity ?? 1, rotate: degrees(R - (o.rot || 0) - (o.ang || 0)) });
+                xoff += r.f.widthOfTextAtSize(r.text, o.size);
+              }
+            });
+            break;
+          }
           const font = await embedFontFor(doc, o, cache);
           String(o.text).split('\n').forEach((line, i) => {
             if (!line) return;
@@ -3058,8 +3140,7 @@ function addPageNumbers(fmt, pos, size, startAt, skipFirst) {
 function addStamp(text, pos, size, color, opacity, scope) {
   if (!needDoc()) return;
   if (!text.trim()) { toast('Enter the stamp text.', 'warn'); return; }
-  const font = (DEVANAGARI.test(text) || !winAnsiOk(text)) ? [...state.fonts.keys()][0] : 'Helvetica';
-  if (!font) { toast('This text needs a custom font: upload a TTF/OTF in Settings first.', 'error'); return; }
+  const font = needsUnicode(text) ? 'uni' : 'Helvetica';
   const pages = scope === 'all' ? state.pages.slice() : [state.pages[state.current]];
   addTextToPages(pages, { label: 'Add stamp', make: () => text, pos, size: safeNum(size, 48, 6, 300), color, opacity: safeNum(opacity, 0.3, 0.05, 1), font, bold: font === 'Helvetica' });
 }
@@ -3182,13 +3263,10 @@ function stampObjects(p, s) {
 }
 function applyStamp(s) {
   if (!needDoc()) return;
+  if (s.kind === 'text' && (s.font === 'uni' || needsUnicode(s.text))) ensureUniFonts().catch(() => { });
   if (s.kind === 'text') {
     if (!s.text.trim()) { toast('Watermark text likhiye.', 'warn'); return; }
-    if (fontMeta(s.font).std && !winAnsiOk(s.text)) {
-      const f = [...state.fonts.keys()][0];
-      if (!f) { toast('Hindi/special text ke liye pehle Settings mein TTF font upload kijiye.', 'error'); return; }
-      s.font = f;
-    }
+    if (fontMeta(s.font).std && needsUnicode(s.text)) s.font = 'uni';
   } else if (!s.imageId) { toast('Pehle logo image chuniye.', 'warn'); return; }
   const pages = s.scope === 'all' ? state.pages.slice() : s.scope === 'odd' ? state.pages.filter((_, i) => i % 2 === 0)
     : s.scope === 'even' ? state.pages.filter((_, i) => i % 2 === 1) : [state.pages[state.current]];
@@ -3227,6 +3305,7 @@ function reversePages() {
 
 /* Compress: re-draw every page (with edits) as a JPEG at the chosen resolution. */
 async function renderComposite(p, k) {
+  if (usesUni([p])) await ensureUniFonts();
   const pg = await getPdfPage(p.src, p.idx);
   const { R, w, h } = pview(p);
   k = Math.min(k, Math.sqrt(30e6 / (w * h)));
@@ -3507,11 +3586,14 @@ async function textToDocx(text) {
 
 /* ---- Text -> PDF with word wrap (custom fonts for Hindi) ---- */
 async function textToPdfBytes(text, { font = 'Helvetica', size = 12, margin = 50, title = '' } = {}) {
+  if (fontMeta(font).std && needsUnicode(text) || font === 'uni') await ensureUniFonts();
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
+  if (fontMeta(font).std && needsUnicode(text)) font = 'uni';
   const meta = fontMeta(font);
-  if (meta.std && !winAnsiOk(text)) throw new Error('Hindi/special characters ke liye ek TTF font chuniye (Settings → Upload font, e.g. Noto Sans Devanagari)');
-  const f = meta.std ? await doc.embedFont(StandardFonts[STD_FONTS[font].pdf[0]]) : await doc.embedFont(state.fonts.get(font).bytes, { subset: true });
+  let f, uni = null;
+  if (font === 'uni') { uni = await embedUni(doc, { fonts: new Map() }, false); f = { widthOfTextAtSize: (t, s) => uni.width(t, s) }; }
+  else f = meta.std ? await doc.embedFont(StandardFonts[STD_FONTS[font].pdf[0]]) : await doc.embedFont(state.fonts.get(font).bytes, { subset: true });
   const W = 595, H = 842, lh = size * 1.45, maxW = W - margin * 2;
   let page = doc.addPage([W, H]), y = H - margin - size;
   const newLine = () => { y -= lh; if (y < margin) { page = doc.addPage([W, H]); y = H - margin - size; } };
@@ -3534,7 +3616,8 @@ async function textToPdfBytes(text, { font = 'Helvetica', size = 12, margin = 50
   };
   for (const para of String(text).replace(/\r/g, '').split('\n')) {
     for (const line of wrap(para)) {
-      if (line) page.drawText(line, { x: margin, y, size, font: f, color: rgb(0, 0, 0) });
+      if (line && uni) { let xo = margin; for (const r of uni.runs(line)) { page.drawText(r.text, { x: xo, y, size, font: r.f, color: rgb(0, 0, 0) }); xo += r.f.widthOfTextAtSize(r.text, size); } }
+      else if (line) page.drawText(line, { x: margin, y, size, font: f, color: rgb(0, 0, 0) });
       newLine();
     }
   }
@@ -3570,7 +3653,7 @@ function renderRemove(wb) {
     <button class="btn primary big" id="wmDetect"><svg class="i"><use href="#i-find"/></svg>Find watermark automatically</button>
     ${found}
     <details class="more" ${list && !list.length ? 'open' : ''}><summary>Other ways to remove</summary>
-      <div class="col"><label>Type the watermark text</label><div class="row"><input type="text" id="wmText" placeholder="e.g. Aspiron Education" value="${esc(w.text)}" style="flex:1"><button class="btn outline" id="wmGo">Remove</button></div></div>
+      <div class="col"><label>Type the watermark text</label><div class="row"><input type="text" id="wmText" placeholder="e.g. Company Name" value="${esc(w.text)}" style="flex:1"><button class="btn outline" id="wmGo">Remove</button></div></div>
       <div class="col"><label>Draw a box over it</label><div class="row"><button class="btn outline" id="wmDraw"><svg class="i"><use href="#i-rect"/></svg>Select area</button>
         <label><input type="checkbox" id="wmAll" ${w.regionAll ? 'checked' : ''}> same spot on all pages</label></div></div>
       <div class="col"><label>Paint over it (for scanned pages)</label><div class="row"><button class="btn outline" id="cvDraw"><svg class="i"><use href="#i-white"/></svg>Cover area</button>
@@ -3930,7 +4013,7 @@ async function extractImages() {
 }
 
 /* ====================== App lock (PIN / password) ======================
- * - The PIN is never stored. A key is derived from it (PBKDF2-SHA256, 310k rounds, random salt) and the
+ * - The PIN is never stored. A key is derived from it (PBKDF2-SHA256, 600k rounds, random salt) and the
  *   only thing kept is an encrypted "check" value used to verify the PIN.
  * - While the lock is ON, the file saved on the device is encrypted with that key (AES-256-GCM), including
  *   file name and text typed into the document. The key lives only in memory and is dropped when locked.
@@ -3978,7 +4061,7 @@ async function lockCheckPin(pin) {
   } catch (e) { return null; }
 }
 async function newLockMeta(pin, timeout) {
-  const salt = crypto.getRandomValues(new Uint8Array(16)), iter = 310000;
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iter = 600000;
   const key = await deriveLockKey(pin, salt, iter);
   const { iv, ct } = await aesEnc(key, te.encode('pdfdesk-ok'));
   return { key, meta: { salt: u8b64(salt), iter, iv: u8b64(iv), check: u8b64(ct), numeric: /^\d+$/.test(pin), timeout } };
@@ -4064,14 +4147,15 @@ function renderLockSettings(box) {
   const m = lockMeta();
   const opts = (v) => [[0, 'Immediately'], [60, 'After 1 minute'], [300, 'After 5 minutes'], [900, 'After 15 minutes'], [3600, 'After 1 hour']].map(([s, l]) => `<option value="${s}" ${s === v ? 'selected' : ''}>${l}</option>`).join('');
   if (!m) {
-    box.innerHTML = `<div class="note">Protect the app with a PIN or password. The file saved on this device is then <b>encrypted</b> with it. <b>If you forget it, the saved file cannot be recovered</b> (PDFs you already downloaded are not affected). 6 or more characters is recommended.</div>
-      <div class="col"><input type="password" id="lkNew" placeholder="New PIN or password (min 4)" autocomplete="new-password"><input type="password" id="lkNew2" placeholder="Repeat it" autocomplete="new-password"></div>
+    box.innerHTML = `<div class="note">Protect the app with a PIN or password. The file saved on this device is then <b>encrypted</b> with it. <b>If you forget it, the saved file cannot be recovered</b> (PDFs you already downloaded are not affected). A number-only PIN is easier to guess: 8+ digits, or letters and numbers, is much safer.</div>
+      <div class="col"><input type="password" id="lkNew" placeholder="New PIN or password (min 6)" autocomplete="new-password"><input type="password" id="lkNew2" placeholder="Repeat it" autocomplete="new-password"></div>
       <div class="row"><label>Lock <select id="lkTime">${opts(60)}</select></label></div>
       <button class="btn primary" id="lkOn"><svg class="i"><use href="#i-lock"/></svg>Turn on app lock</button>`;
     $('#lkOn', box).onclick = async () => {
       const a = $('#lkNew', box).value, b = $('#lkNew2', box).value;
-      if (a.length < 4) { toast('Use at least 4 characters.', 'warn'); return; }
+      if (a.length < 6) { toast('Use at least 6 characters.', 'warn'); return; }
       if (a !== b) { toast('The two entries are different.', 'warn'); return; }
+      if (/^\d+$/.test(a) && a.length < 8 && !await confirmBox('Short number PIN', 'A PIN made only of digits and shorter than 8 can be guessed by someone who copies your phone\'s storage. Add letters or use 8+ digits for much better protection. Use it anyway?', 'Use anyway')) return;
       busy(true, 'Securing…');
       try { await enableLock(a, +$('#lkTime', box).value); toast('App lock is ON. Remember your PIN — it cannot be recovered.', 'ok', 7000); }
       catch (e) { fail('Could not turn on the lock', e); } finally { busy(false); }
@@ -4095,11 +4179,11 @@ function renderLockSettings(box) {
   $('#lkChange', box).onclick = async () => {
     const res = await modal({
       title: 'Change PIN',
-      body: `<div class="col"><input type="password" id="cpOld" placeholder="Current PIN" autocomplete="current-password"><input type="password" id="cpNew" placeholder="New PIN or password (min 4)" autocomplete="new-password"><input type="password" id="cpNew2" placeholder="Repeat new one" autocomplete="new-password"></div>`,
+      body: `<div class="col"><input type="password" id="cpOld" placeholder="Current PIN" autocomplete="current-password"><input type="password" id="cpNew" placeholder="New PIN or password (min 6)" autocomplete="new-password"><input type="password" id="cpNew2" placeholder="Repeat new one" autocomplete="new-password"></div>`,
       buttons: [{ label: 'Cancel', value: null }, { label: 'Change', primary: true, collect: true }],
       collect: (r) => {
         const o = $('#cpOld', r).value, a = $('#cpNew', r).value, b = $('#cpNew2', r).value;
-        if (a.length < 4) { toast('Use at least 4 characters.', 'warn'); return undefined; }
+        if (a.length < 6) { toast('Use at least 6 characters.', 'warn'); return undefined; }
         if (a !== b) { toast('The two new entries are different.', 'warn'); return undefined; }
         return { o, a };
       }
@@ -4114,9 +4198,9 @@ function renderLockSettings(box) {
 }
 
 /* ====================== Offline status & Share (Google Drive via the phone's share sheet) ====================== */
-const OFFLINE_CACHE = 'pdfdesk-v7';   // keep in sync with sw.js
+const OFFLINE_CACHE = 'pdfdesk-v8';   // keep in sync with sw.js
 const OCR_FILES = ['vendor/tesseract/tesseract.min.js', 'vendor/tesseract/worker.min.js', 'vendor/tesseract/tesseract-core-simd-lstm.wasm.js', 'vendor/tesseract/tesseract-core-lstm.wasm.js', 'vendor/tesseract/lang/eng.traineddata.gz', 'vendor/tesseract/lang/hin.traineddata.gz'];
-const CORE_FILES = ['vendor/pdf-lib.min.js', 'vendor/fontkit.umd.min.js', 'vendor/pdf.min.js', 'vendor/pdf.worker.min.js', 'vendor/jszip.min.js', 'vendor/runtime.js'];
+const CORE_FILES = ['vendor/pdf-lib.min.js', 'vendor/fontkit.umd.min.js', 'vendor/pdfjs/pdf.module.js', 'vendor/pdfjs/pdf.worker.module.js', 'vendor/jszip.min.js', 'vendor/runtime.js', 'vendor/fonts/NotoSans-Regular.ttf', 'vendor/fonts/NotoSans-Bold.ttf', 'vendor/fonts/NotoSansDevanagari-Regular.ttf', 'vendor/fonts/NotoSansDevanagari-Bold.ttf', 'vendor/fonts/NotoSansMath-Regular.ttf', 'vendor/fonts/NotoSansSymbols2-Regular.ttf'];
 
 async function cachedAll(files) {
   try { if (!window.caches) return false; const c = await caches.open(OFFLINE_CACHE); for (const f of files) if (!await c.match(f)) return false; return true; } catch (e) { return false; }
@@ -4627,6 +4711,7 @@ async function boot() {
   wireLock();
   renderOptbar(); updateChrome(); wireHub();
   if (lockEnabled()) showLock();
+  await pdfjsReady;
   if (!LIBS_OK) {
     $('#empty .hub').innerHTML = '<h1>The app files could not load</h1><p>Some of the app\'s own files are missing or were blocked. Check your internet connection and reload once; after that the app works offline.</p><button class="btn primary" id="btnReload">Reload</button>';
     $('#btnReload').onclick = () => location.reload();
@@ -4634,8 +4719,11 @@ async function boot() {
   }
   try { for (const f of await idbFonts('all')) await registerFont(f, false); } catch (e) { console.warn('fonts', e); }
   renderOptbar();
+  ensureUniFonts().catch(e => console.warn('built-in fonts', e));
   if (!lockEnabled()) resumeLastSession();
   if ('serviceWorker' in navigator && window.isSecureContext) {
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) toast('App updated ✓ — reload the page to use the new version.', 'ok', 12000); });
     navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed', err));
   }
 }

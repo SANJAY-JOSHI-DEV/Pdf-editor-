@@ -17,14 +17,20 @@ Everything runs in your browser. No server, no upload, no login.
 - Drawing, highlight, shapes, eraser, images, signature, forms, find & highlight, page numbers, pages (rotate, delete, reorder, extract, split), undo/redo, metadata removal.
 
 ## Security
-- Files are processed only in the browser; the only network requests go to this site itself.
-- Libraries are bundled with the app (version-pinned, with Subresource Integrity hashes) — no CDN, no third-party server.
-- Strict Content-Security-Policy: no eval (only WebAssembly for OCR), no inline event handlers, scripts only from this site (the inline script is hash-pinned).
-- pdf.js runs with `isEvalSupported: false` (mitigates malicious-font exploits such as CVE-2024-4367).
+- **Nothing leaves your device.** The app has no server and no database, uses no analytics, and talks to no other website. Libraries and fonts are bundled in `vendor/` (no CDN). Checked: the code contains no `fetch/XMLHttpRequest/WebSocket/sendBeacon` to any outside address, and an automated run of every feature produced **zero** requests to any other host.
+- **Even if something tried, the browser would refuse:** a strict Content-Security-Policy (`default-src 'self'`, no `unsafe-eval`, no inline scripts except one hash-pinned script, `connect-src 'self'`, `form-action 'none'`, `frame-src 'self'`). Tested: fetch, XHR, beacon, WebSocket, EventSource, images, scripts, CSS, iframes, form posts, dynamic imports, workers and eval all fail.
+- **Cannot be embedded** in another website (clickjacking guard).
+- **PDF engine is patched:** PDF.js 4.10.38 (older 3.x had CVE-2024-4367, "malicious PDF runs JavaScript"). On top of that, PDF.js runs with `isEvalSupported:false` and the CSP forbids eval.
+- Bundled libraries are byte-identical to the official npm packages (see `vendor/LICENSES.md`).
 - All file names, form field names, search text and stored settings are escaped/validated before being shown.
 - Tested: XSS via file name, form fields, search, annotations and tampered localStorage; 9 corrupted/fuzzed PDFs (no crash).
+- The repository contains no passwords, keys, tokens or personal data. Keep your GitHub account safe (2-step login): whoever can change the repository can change the app everyone gets.
 
-Files: `index.html` (the whole app), `manifest.json`, `sw.js`, `icon-192.png`, `icon-512.png`, and `vendor/` (bundled libraries, see `vendor/LICENSES.md`).
+### Known remaining risks (be aware)
+- A PDF from an untrusted source can still be heavy or malformed enough to freeze or crash the browser tab (denial of service). It cannot read your other files.
+- The app lock protects the file saved on the device (encrypted) and the app screen, not a document you have left open on an unlocked screen. A short number-only PIN can be guessed offline by someone who copies the phone's storage — use 8+ digits or letters. Forgotten PIN = saved file unrecoverable.
+- If you use **Share / Save to Drive**, the file goes wherever you choose in the share sheet.
+- Text you copy goes to the phone's clipboard, which other apps can read.
 
 ## Works fully offline
 All libraries (PDF engine, fonts, ZIP, OCR) are bundled in `vendor/`; the app talks to **no other server**. Open the https link once with internet, then it works without internet (airplane mode too). For OCR offline, press **Settings → Works offline → Download OCR** once (about 12 MB).
