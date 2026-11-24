@@ -1,6 +1,26 @@
 # PDF Desk — private, in-browser PDF editor
 
 Everything runs in your browser. No server, no upload, no login.
+
+**Live app:** https://sanjay-joshi-dev.github.io/Pdf-editor-/ (after GitHub Pages is switched on, see below)
+
+## Features
+- Open PDFs, or turn photos/images (PNG/JPG/WebP) into a PDF.
+- Watermark: auto text removal, region removal, cover/blur fallback, and **add your own stamp** (DRAFT, COPY, …).
+- Text (incl. Hindi with an uploaded Devanagari font), pen, highlight, shapes, arrows, whiteout, images, signature, form fields.
+- **Find text** across all pages and highlight every match.
+- **Page numbers** (1, Page 1 of N, 1 / N, - 1 -) in any corner.
+- Pages: rotate, delete, duplicate, blank page, drag to reorder, extract, merge, split.
+- Fill existing forms; undo/redo (100 steps); export PNG/JPG; **remove hidden metadata** on download.
+
+## Security
+- Files are processed only in the browser; the only network requests go to this site and cdn.jsdelivr.net (libraries).
+- Libraries are version-pinned with Subresource Integrity hashes.
+- Strict Content-Security-Policy: no eval, no inline event handlers, scripts only from this page (hash-pinned) and jsDelivr.
+- pdf.js runs with `isEvalSupported: false` (mitigates malicious-font exploits such as CVE-2024-4367).
+- All file names, form field names, search text and stored settings are escaped/validated before being shown.
+- Tested: XSS via file name, form fields, search, annotations and tampered localStorage; 9 corrupted/fuzzed PDFs (no crash).
+
 Files: `index.html` (the whole app), `manifest.json`, `sw.js`, `icon-192.png`, `icon-512.png`.
 
 ## Deploy on GitHub Pages (10 steps)
