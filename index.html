@@ -7,7 +7,7 @@
 <meta name="description" content="Private, in-browser PDF editor. Files never leave your device.">
 <title>PDF Desk</title>
 <!-- Strict CSP: scripts only from this page (hash-pinned at build time) and the pinned CDN. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-acHK1yI8tAan5k18u+6+yBUxpdDgoRfZclsLef+HzeE='; worker-src 'self' blob:; connect-src 'self' blob: data:; img-src 'self' data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-YjhWLWRxDq+YLAVuQbWDwCA6xQCDRvaq3benYHqZ3KY='; worker-src 'self' blob:; connect-src 'self' blob: data:; img-src 'self' data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b8cff'/%3E%3Cpath d='M20 12h18l10 10v30H20z' fill='%23fff'/%3E%3Cpath d='M38 12v10h10' fill='%23cddaff'/%3E%3Cpath d='M25 44l14-14 4 4-14 14h-4z' fill='%235b8cff'/%3E%3C/svg%3E">
@@ -263,6 +263,22 @@ details.more summary{cursor:pointer;color:var(--muted);padding:8px 0;font-weight
 #sigpad{width:100%;height:220px;background:#fff;border-radius:16px;touch-action:none;display:block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
 .banner{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:30;max-width:92%}
 
+
+/* ---------- Angle stepper and split download button ---------- */
+.angle{display:inline-flex;align-items:center;gap:8px;flex:none}
+.angle-lbl{color:var(--muted);font-size:12.5px}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line);background:var(--panel2);border-radius:14px;overflow:hidden}
+.stepper .btn{border-radius:0;height:40px;min-width:44px;padding:0;font-size:22px;font-weight:600;line-height:1}
+.stepper input{width:52px;min-height:0;height:40px;padding:0;border:none;border-radius:0;background:transparent;text-align:center;font-weight:700;font-size:15.5px;box-shadow:none!important;-moz-appearance:textfield}
+.stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.stepper .deg{margin:0 8px 0 -6px;color:var(--muted);font-weight:700}
+.angle .btn,.stepper .btn{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.split{display:inline-flex;flex:none}
+.split .btn:first-child{border-radius:12px 0 0 12px}
+.split .btn:last-child{border-radius:0 12px 12px 0;min-width:30px;padding:0 6px;border-left:1px solid rgba(255,255,255,.4)}
+#appbar .split .btn:last-child{min-width:28px;padding:0 4px}
+.sub2{color:var(--muted);margin:2px 0 12px;font-size:13px;line-height:1.5}
+
 /* ---------- Lock screen ---------- */
 #lock{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
 #lock.cover .lockbox{visibility:hidden}
@@ -361,6 +377,7 @@ body.locked{overflow:hidden}
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 8.5v5M12 17v.01"/><path d="M10.3 4.3L2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z"/></symbol>
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.01"/></symbol>
@@ -376,7 +393,7 @@ body.locked{overflow:hidden}
   <button class="btn" id="sbToggle" title="Pages"><svg class="i"><use href="#i-pages"/></svg></button>
   <span class="brand">PDF Desk</span>
   <button class="btn" id="btnOpen" title="Open PDF (Ctrl+O)"><svg class="i"><use href="#i-open"/></svg><span class="lbl">Open</span></button>
-  <button class="btn primary" id="btnSave" title="Download edited PDF (Ctrl+S)" disabled><svg class="i"><use href="#i-save"/></svg><span class="lbl">Download</span><span class="lbl-sm">Save</span></button>
+  <span class="split"><button class="btn primary" id="btnSave" title="Download the PDF (Ctrl+S)" disabled><svg class="i"><use href="#i-save"/></svg><span class="lbl">Download</span><span class="lbl-sm">Save</span></button><button class="btn primary" id="btnDlMore" title="Download as PNG / JPG image…" aria-label="More download formats" disabled><svg class="i"><use href="#i-chev"/></svg></button></span>
   <span class="fname" id="fname"></span>
   <button class="btn" id="btnUndo" title="Undo (Ctrl+Z)" disabled><svg class="i"><use href="#i-undo"/></svg></button>
   <button class="btn" id="btnRedo" title="Redo (Ctrl+Y)" disabled><svg class="i"><use href="#i-redo"/></svg></button>
@@ -1518,6 +1535,22 @@ function distSeg(px, py, [x1, y1], [x2, y2]) {
   const t = l ? clamp(((px - x1) * dx + (py - y1) * dy) / l, 0, 1) : 0;
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
+/* ---- rotation (text and images): angle in degrees, clockwise, around the box centre ---- */
+const rotatable = (o) => o.type === 'text' || o.type === 'image';
+const normAng = (a) => ((Math.round(a) + 180) % 360 + 360) % 360 - 180;   // wrap into -180..180
+/** A page point expressed in the object's own (unrotated) frame: undo its angle around its centre. */
+function toLocal(o, x, y) {
+  if (!o.ang || !rotatable(o)) return [x, y];
+  const cx = o.x + o.w / 2, cy = o.y + o.h / 2, a = -o.ang * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  return [cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c];
+}
+const rotHandlePos = (o) => [o.x + o.w / 2, o.y - 32 / state.zoom];       // in the object's own frame
+function hitRotate(o, x, y) {
+  if (!rotatable(o)) return false;
+  const [lx, ly] = toLocal(o, x, y), [hx, hy] = rotHandlePos(o);
+  return Math.hypot(lx - hx, ly - hy) <= (COARSE ? 22 : 12) / state.zoom;
+}
+
 function hitObj(p, x, y) {
   const tol = (COARSE ? 14 : 6) / state.zoom;
   for (let i = p.objects.length - 1; i >= 0; i--) {
@@ -1526,7 +1559,10 @@ function hitObj(p, x, y) {
       const lim = (o.width || 1) / 2 + tol;
       if (o.pts.length === 1 && Math.hypot(x - o.pts[0][0], y - o.pts[0][1]) <= lim) return o;
       for (let k = 1; k < o.pts.length; k++) if (distSeg(x, y, o.pts[k - 1], o.pts[k]) <= lim) return o;
-    } else if (x >= o.x - tol && x <= o.x + o.w + tol && y >= o.y - tol && y <= o.y + o.h + tol) return o;
+    } else {
+      const [lx, ly] = toLocal(o, x, y);
+      if (lx >= o.x - tol && lx <= o.x + o.w + tol && ly >= o.y - tol && ly <= o.y + o.h + tol) return o;
+    }
   }
   return null;
 }
@@ -1537,8 +1573,8 @@ function handlesOf(o) {
 }
 function hitHandle(o, x, y) {
   const r = (COARSE ? 18 : 9) / state.zoom;
-  const hs = handlesOf(o);
-  for (let i = 0; i < hs.length; i++) if (Math.abs(x - hs[i][0]) <= r && Math.abs(y - hs[i][1]) <= r) return i;
+  const hs = handlesOf(o), [lx, ly] = toLocal(o, x, y);
+  for (let i = 0; i < hs.length; i++) if (Math.abs(lx - hs[i][0]) <= r && Math.abs(ly - hs[i][1]) <= r) return i;
   return -1;
 }
 
@@ -1622,8 +1658,10 @@ function drawObj(ctx, o, preview, composite) {
   }
 }
 function drawSelection(ctx, o) {
-  const z = state.zoom, b = bbox(o);
+  const z = state.zoom, b = bbox(o), rot = rotatable(o);
+  const cx = o.x + o.w / 2, cy = o.y + o.h / 2, ang = rot ? (o.ang || 0) * Math.PI / 180 : 0;
   ctx.save();
+  if (ang) { ctx.translate(cx, cy); ctx.rotate(ang); ctx.translate(-cx, -cy); }   // the frame turns with the object
   ctx.strokeStyle = '#5b8cff'; ctx.lineWidth = 1.5 / z; ctx.setLineDash([5 / z, 4 / z]);
   if (o.type !== 'line' && o.type !== 'arrow') ctx.strokeRect(b.x, b.y, b.w, b.h);
   ctx.setLineDash([]);
@@ -1632,7 +1670,23 @@ function drawSelection(ctx, o) {
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
     ctx.lineWidth = 2 / z; ctx.strokeStyle = '#5b8cff'; ctx.stroke();
   }
+  if (rot) {                                                                         // rotation handle on a stem above the box
+    const [hx, hy] = rotHandlePos(o), hr = (COARSE ? 10 : 8) / z;
+    ctx.strokeStyle = '#5b8cff'; ctx.lineWidth = 1.5 / z;
+    ctx.beginPath(); ctx.moveTo(hx, o.y); ctx.lineTo(hx, hy + hr); ctx.stroke();
+    ctx.fillStyle = '#5b8cff'; ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.7 / z; ctx.beginPath(); ctx.arc(hx, hy, hr * 0.5, -Math.PI * 0.2, Math.PI * 1.35); ctx.stroke();
+  }
   ctx.restore();
+  if (rot && state.rotLabel && state.rotLabel.id === o.id) {                         // live angle bubble, always upright
+    const [hx, hy] = rotHandlePos(o), c = Math.cos(ang), sn = Math.sin(ang), dx = hx - cx, dy = hy - cy;
+    const wx = cx + dx * c - dy * sn, wy = cy + dx * sn + dy * c - 26 / z, txt = state.rotLabel.text;
+    ctx.save(); ctx.font = `700 ${13 / z}px system-ui, sans-serif`;
+    const tw = ctx.measureText(txt).width, ph = 8 / z, bh = 24 / z;
+    ctx.fillStyle = '#1b2136'; ctx.beginPath(); ctx.roundRect(wx - tw / 2 - ph, wy - bh / 2, tw + 2 * ph, bh, 8 / z); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, wx, wy + 0.5 / z);
+    ctx.restore();
+  }
 }
 
 /* ---- Image & font registries ---- */
@@ -1761,6 +1815,7 @@ function onPointerDown(e) {
   if (t === 'select') {
     const s = selected();
     if (s && s.page.id === p.id) {
+      if (hitRotate(s.obj, x, y)) { drag = { ...base, mode: 'rotate', obj: s.obj, orig: structuredClone(s.obj), before: snap() }; capture(e, el); e.preventDefault(); return; }
       const h = hitHandle(s.obj, x, y);
       if (h >= 0) { drag = { ...base, mode: 'resize', obj: s.obj, orig: structuredClone(s.obj), ob: bbox(s.obj, false), handle: h, before: snap() }; capture(e, el); return; }
     }
@@ -1814,17 +1869,37 @@ function onPointerMove(e) {
       for (const k of Object.keys(fresh)) o[k] = fresh[k];
       moveObj(o, x - sx, y - sy); break;
     }
+    case 'rotate': {
+      const [rx, ry] = evtPoint(e, pe);                               // not clamped: you can drag past the page edge
+      const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+      if (Math.hypot(rx - cx, ry - cy) < 4 / state.zoom) break;
+      let a = Math.atan2(rx - cx, -(ry - cy)) * 180 / Math.PI;       // 0° = handle straight up, clockwise positive
+      const near = Math.round(a / 15) * 15;
+      if (e.shiftKey || Math.abs(a - near) < 3.5) a = near;          // magnetic 15° steps
+      o.ang = normAng(a);
+      state.rotLabel = { id: o.id, text: o.ang + '°' };
+      const ai = document.querySelector('#optbar input[data-k=ang]'); if (ai) ai.value = o.ang;   // keep the number in step while dragging
+      break;
+    }
     case 'resize': {
       if (o.type === 'line' || o.type === 'arrow') { o.pts[drag.handle] = [x, y]; break; }
-      const ob = drag.ob;
+      const ob = drag.ob, rotated = rotatable(drag.orig) && drag.orig.ang;
+      const [px, py] = rotated ? toLocal(drag.orig, x, y) : [x, y];   // work in the object's own frame
       const corners = [[ob.x, ob.y], [ob.x + ob.w, ob.y], [ob.x + ob.w, ob.y + ob.h], [ob.x, ob.y + ob.h]];
       const [fx, fy] = corners[(drag.handle + 2) % 4];
-      let nw = Math.max(4, Math.abs(x - fx)), nh = Math.max(4, Math.abs(y - fy));
+      let nw = Math.max(4, Math.abs(px - fx)), nh = Math.max(4, Math.abs(py - fy));
       if ((o.type === 'image' || o.type === 'text') && !e.shiftKey && ob.w && ob.h) {
-        const s = Math.max(nw / ob.w, nh / ob.h); nw = ob.w * s; nh = ob.h * s;
+        const s2 = Math.max(nw / ob.w, nh / ob.h); nw = ob.w * s2; nh = ob.h * s2;
       }
-      const nb = { x: x < fx ? fx - nw : fx, y: y < fy ? fy - nh : fy, w: nw, h: nh };
-      resizeObj(o, drag.orig, ob, nb); break;
+      const nb = { x: px < fx ? fx - nw : fx, y: py < fy ? fy - nh : fy, w: nw, h: nh };
+      resizeObj(o, drag.orig, ob, nb);
+      if (rotated) {                                                  // keep the opposite corner still on the page
+        const a = drag.orig.ang * Math.PI / 180, cs = Math.cos(a), sn = Math.sin(a);
+        const turn = (qx, qy, cx, cy) => [cx + (qx - cx) * cs - (qy - cy) * sn, cy + (qx - cx) * sn + (qy - cy) * cs];
+        const W0 = turn(fx, fy, ob.x + ob.w / 2, ob.y + ob.h / 2), W1 = turn(fx, fy, o.x + o.w / 2, o.y + o.h / 2);
+        o.x += W0[0] - W1[0]; o.y += W0[1] - W1[1];
+      }
+      break;
     }
     case 'draw': {
       const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
@@ -1856,8 +1931,9 @@ async function onPointerUp(e) {
   const p = d.page;
   try {
     switch (d.mode) {
-      case 'move': case 'resize':
-        if (d.moved) { if (d.obj.type === 'text' || d.obj.type === 'image') { /* sizes already final */ } touch(p); pushCommand(d.mode === 'move' ? 'Move object' : 'Resize object', d.before); }
+      case 'move': case 'resize': case 'rotate':
+        state.rotLabel = null;
+        if (d.moved) { touch(p); pushCommand({ move: 'Move object', resize: 'Resize object', rotate: 'Rotate object' }[d.mode], d.before); } else drawOverlay(p);
         break;
       case 'draw': case 'line': case 'box': {
         const b = bbox(d.obj, false);
@@ -1896,6 +1972,7 @@ function cancelDrag() {
   if (!drag) return;
   const d = drag; drag = null;
   if (d.rectEl) d.rectEl.remove();
+  state.rotLabel = null;
   if (d.before) { state.pages = d.before; onDocChanged(); }
 }
 
@@ -3814,7 +3891,7 @@ function renderStudio(wb) {
     : `<div class="row"><button class="btn outline" id="sxPick"><svg class="i"><use href="#i-image"/></svg>${st.imageId ? 'Change logo' : 'Choose logo (PNG/JPG)'}</button>${st.imageId ? '<span class="hint">Logo selected ✓</span>' : ''}</div>
       <div class="row"><label>Width <input type="range" id="sxScale" min="5" max="100" value="${safeNum(st.scale, 40, 5, 100)}"></label><span class="hint">% of page</span></div>`}
     <div class="row"><label>Light ↔ Dark <input type="range" id="sxOp" min="0.05" max="1" step="0.05" value="${safeNum(st.opacity, 0.25, 0.05, 1)}"></label></div>
-    <div class="row"><span class="hint">Tilt</span><input type="hidden" id="sxAng" value="${safeNum(st.ang, -45, -180, 180)}">${[[0, '—'], [-45, '⟋'], [45, '⟍'], [-90, '|']].map(([a, l]) => `<button class="btn sm ${safeNum(st.ang, -45) === a ? 'active' : 'outline'}" data-ang="${a}">${l}</button>`).join('')}</div>
+    <div class="row">${angleStepper(safeNum(st.ang, -45, -180, 180), 'id="sxAng"')}</div>
     <div class="row"><label>Where <select id="sxPos">${[['middle-center', 'Centre'], ['top-center', 'Top'], ['bottom-center', 'Bottom'], ['top-left', 'Top left'], ['top-right', 'Top right'], ['bottom-left', 'Bottom left'], ['bottom-right', 'Bottom right']].map(([v, l]) => `<option value="${v}" ${st.pos === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label>Pages <select id="sxScope">${[['all', 'All'], ['current', 'This page'], ['odd', 'Odd'], ['even', 'Even']].map(([v, l]) => `<option value="${v}" ${st.scope === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
     <label class="row"><input type="checkbox" id="sxTile" ${st.tile ? 'checked' : ''}> Repeat all over the page</label>
@@ -3827,7 +3904,6 @@ function renderStudio(wb) {
     Object.assign(st, { opacity: +v('sxOp').value, ang: safeNum(v('sxAng').value, 0, -180, 180), pos: v('sxPos').value, tile: v('sxTile').checked, scope: v('sxScope').value });
   };
   $$('[data-kind]', wb).forEach(x => x.onclick = () => { read(); st.kind = x.dataset.kind; renderPanel(); });
-  $$('[data-ang]', wb).forEach(x => x.onclick = () => { read(); st.ang = +x.dataset.ang; renderPanel(); });
   if ($('#sxFont', wb)) $('#sxFont', wb).onchange = async (e) => { if (e.target.value === '__upload') { const id = await pickFontFile(); read(); if (id) st.font = id; renderPanel(); } };
   if ($('#sxPick', wb)) $('#sxPick', wb).onclick = () => {
     const inp = $('#fileImage'); inp.value = '';
@@ -3922,6 +3998,7 @@ function panelMore(b) {
     <button class="tile" data-open="export"><b>Save options</b><small>images, compress, privacy</small></button>
     <button class="tile" data-tool2="field"><b>Add form field</b><small>fillable box</small></button>
     <button class="tile" data-open="settings"><b>Settings</b><small>fonts, defaults</small></button>
+    <button class="tile" id="mrImg" ${state.pages.length ? '' : 'disabled'}><b>Download as image</b><small>PNG or JPG of pages</small></button>
     <button class="tile" id="mrShare" ${state.pages.length ? '' : 'disabled'}><b>Share / Drive</b><small>save to Google Drive</small></button>
     ${lockEnabled() ? '<button class="tile" id="mrLock"><b>Lock now</b><small>PIN needed to open</small></button>' : '<button class="tile" data-open="settings"><b>App lock</b><small>set a PIN</small></button>'}
     <button class="tile" id="mrClose" ${state.pages.length ? '' : 'disabled'}><b>Close file</b><small>forget it from this phone</small></button>
@@ -3932,6 +4009,7 @@ function panelMore(b) {
   $('#mrTheme', b).onclick = toggleTheme;
   $('#mrClose', b).onclick = closeDocument;
   $('#mrShare', b).onclick = sharePdf;
+  $('#mrImg', b).onclick = () => { openPanel('edit'); openDownloadSheet('png'); };
   if ($('#mrLock', b)) $('#mrLock', b).onclick = () => { openPanel('edit'); showLock(); };
   $$('[data-open]', b).forEach(x => x.onclick = () => openPanel(x.dataset.open));
   $$('[data-tool2]', b).forEach(x => x.onclick = () => { setTool(x.dataset.tool2); closePanelOnPhone(); });
@@ -4363,6 +4441,53 @@ async function sharePdf() {
   catch (e) { if (e && e.name === 'AbortError') return; fail('Share failed', e); }
 }
 
+/* ====================== Download sheet: PDF or image (PNG / JPG) ====================== */
+/* The Save button still downloads the PDF in one tap. The small ▾ next to it opens this sheet. */
+async function openDownloadSheet(startFmt) {
+  if (isLocked() || !needDoc()) return;
+  const n = state.pages.length, cur = state.current + 1;
+  const fmt0 = ['pdf', 'png', 'jpg'].includes(startFmt) ? startFmt : LS.get('dlFmt', 'pdf');
+  const res = await modal({
+    title: 'Download',
+    body: `<div class="tabs" id="dlTabs"><button type="button" class="btn" data-fmt="pdf">PDF</button><button type="button" class="btn" data-fmt="png">PNG image</button><button type="button" class="btn" data-fmt="jpg">JPG image</button></div>
+      <div id="dlPdf"><p class="sub2">The whole document as a PDF — text stays selectable and everything you edited is included.</p>
+        <label class="row"><input type="checkbox" id="dlStrip" ${state.stripMeta ? 'checked' : ''}> Remove hidden info (author, creator app) for privacy</label></div>
+      <div id="dlImg" class="hidden">
+        <div class="col"><label>Which pages?</label>
+          <select id="dlScope"><option value="cur">This page (${cur}${n > 1 ? ' of ' + n : ''})</option>${n > 1 ? `<option value="all">All ${n} pages (ZIP)</option><option value="range">Choose pages…</option>` : ''}</select>
+          <input type="text" id="dlRange" class="hidden" placeholder="e.g. 1-3, 5" inputmode="text"></div>
+        <div class="col"><label>Quality</label>
+          <select id="dlQ"><option value="1">Small (72 dpi)</option><option value="2" selected>Normal (144 dpi)</option><option value="3">High (216 dpi)</option><option value="4.17">Print (300 dpi)</option></select></div>
+        <div class="note">The picture contains everything you added or changed on the page. JPG is smaller; PNG is sharper for text and lines.</div></div>`,
+    buttons: [{ label: 'Cancel', value: null }, { label: 'Download', primary: true, collect: true }],
+    onOpen: (r) => {
+      let fmt = fmt0;
+      const show = () => {
+        r.dataset.fmt = fmt;
+        $$('#dlTabs .btn', r).forEach(b => b.classList.toggle('active', b.dataset.fmt === fmt));
+        $('#dlPdf', r).classList.toggle('hidden', fmt !== 'pdf');
+        $('#dlImg', r).classList.toggle('hidden', fmt === 'pdf');
+        $('.mf .btn.primary', r).textContent = fmt === 'pdf' ? 'Download PDF' : `Download ${fmt.toUpperCase()}`;
+      };
+      $$('#dlTabs .btn', r).forEach(b => { b.onclick = () => { fmt = b.dataset.fmt; show(); }; });
+      $('#dlScope', r).onchange = (e) => { $('#dlRange', r).classList.toggle('hidden', e.target.value !== 'range'); };
+      show();
+    },
+    collect: (r) => {
+      const fmt = r.dataset.fmt, scope = $('#dlScope', r).value, range = $('#dlRange', r).value.trim();
+      if (fmt !== 'pdf' && scope === 'range') {
+        try { parseRanges(range, state.pages.length); } catch (e) { toast(e.message, 'warn'); return undefined; }
+      }
+      return { fmt, scope, range, q: +$('#dlQ', r).value, strip: $('#dlStrip', r).checked };
+    }
+  });
+  if (!res) return;
+  LS.set('dlFmt', res.fmt);
+  if (res.fmt === 'pdf') { state.stripMeta = res.strip; await downloadPdf(); return; }
+  const pages = res.scope === 'cur' ? String(cur) : res.scope === 'all' ? '' : res.range;
+  await exportImages(res.fmt, res.q, pages);
+}
+
 /* ================================= UI ================================= */
 function onDocChanged() {
   if (state.sel && !findObj(state.sel.pageId, state.sel.objId)) state.sel = null;
@@ -4376,7 +4501,7 @@ function onDocChanged() {
 function updateChrome() {
   const has = state.pages.length > 0;
   $('#empty').classList.toggle('hidden', has);
-  $('#btnSave').disabled = !has;
+  $('#btnSave').disabled = !has; $('#btnDlMore').disabled = !has;
   $('#btnUndo').disabled = !history.undo.length;
   $('#btnRedo').disabled = !history.redo.length;
   $('#btnUndo').title = history.undo.length ? `Undo: ${history.undo[history.undo.length - 1].label} (Ctrl+Z)` : 'Undo';
@@ -4404,11 +4529,11 @@ function renderOptbar() {
   const act = (a, icon, label, cls = '') => `<button class="btn sm ${cls}" data-act="${a}" title="${label}"><svg class="i"><use href="#i-${icon}"/></svg><span class="hide-sm">${label}</span></button>`;
   if (s) {
     const o = s.obj;
+    if (o.type === 'text' || o.type === 'image') parts.push(angleStepper(safeNum(o.ang, 0, -180, 180), 'data-k="ang"'));
     if (['path', 'line', 'arrow', 'rect', 'ellipse', 'text', 'whiteout'].includes(o.type) || (o.type === 'cover' && !o.imageId)) parts.push(colorIn(o.color));
     if (['path', 'line', 'arrow', 'rect', 'ellipse'].includes(o.type)) parts.push(widthIn(o.width, o.hl ? 60 : 30));
     if (['path', 'line', 'arrow', 'rect', 'ellipse', 'text', 'image'].includes(o.type)) parts.push(opIn(o.opacity));
     if (o.type === 'rect' || o.type === 'ellipse') parts.push(fillIn(o.fill));
-    if (o.type === 'text' || o.type === 'image') parts.push(`<label>Angle <input type="range" data-k="ang" min="-180" max="180" step="1" value="${safeNum(o.ang, 0, -180, 180)}"></label>`);
     if (o.type === 'text') parts.push(act('edit', 'edit', 'Edit text'));
     if (o.type === 'field') parts.push(act('field', 'edit', 'Name/value'));
     if (o.type === 'cover') parts.push('<span class="hint">Cover (hides, does not remove)</span>');
@@ -4427,9 +4552,34 @@ function renderOptbar() {
   }
   ob.innerHTML = parts.join('');
 }
+/** "− 45° +" control: tap for ±1°, hold to run faster, or type a number. Presets below. */
+function angleStepper(v, attrs) {
+  const presets = [[0, '0°'], [45, '45°'], [-45, '−45°'], [90, '90°']].map(([a, l]) => `<button type="button" class="btn sm outline" data-apreset="${a}">${l}</button>`).join('');
+  return `<span class="angle"><span class="angle-lbl">Angle</span><span class="stepper"><button type="button" class="btn" data-astep="-1" aria-label="Turn 1 degree left">−</button><input type="number" ${attrs} min="-180" max="180" step="1" inputmode="numeric" value="${v}" aria-label="Angle in degrees"><span class="deg">°</span><button type="button" class="btn" data-astep="1" aria-label="Turn 1 degree right">+</button></span>${presets}</span>`;
+}
+function wireAngleControls(root) {
+  let timer = null, held = null, n = 0;
+  const bump = (inp, d) => { inp.value = normAng(+inp.value + d); inp.dispatchEvent(new Event('input', { bubbles: true })); };
+  const release = () => { clearTimeout(timer); if (held) { const i = held; held = null; i.dispatchEvent(new Event('change', { bubbles: true })); } };
+  root.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('[data-astep]'); if (!b) return;
+    const inp = b.closest('.angle').querySelector('input[type=number]'); if (!inp) return;
+    e.preventDefault(); held = inp; n = 0;
+    const d = +b.dataset.astep; bump(inp, d);
+    timer = setTimeout(function loop() { n++; bump(inp, d * (n > 14 ? 5 : 1)); timer = setTimeout(loop, 85); }, 380);
+  });
+  window.addEventListener('pointerup', release); window.addEventListener('pointercancel', release);
+  root.addEventListener('contextmenu', (e) => { if (e.target.closest('.angle')) e.preventDefault(); });
+  root.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-apreset]'); if (!b) return;
+    const inp = b.closest('.angle').querySelector('input[type=number]'); inp.value = b.dataset.apreset;
+    inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
 function onOptInput(e) {
   const k = e.target.dataset.k; if (!k) return;
-  const val = e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'range' || e.target.type === 'number' ? +e.target.value : e.target.value;
+  let val = e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'range' || e.target.type === 'number' ? +e.target.value : e.target.value;
+  if (k === 'ang') { val = normAng(Number.isFinite(val) ? val : 0); if (e.type === 'change') e.target.value = val; }
   const s = selected();
   if (s) {
     if (!styleBefore) styleBefore = snap();
@@ -4771,6 +4921,8 @@ function wireUI() {
     const sh = e.target.closest('#optbar [data-shape]'); if (sh) setTool(sh.dataset.shape);
   });
   $('#optbar').addEventListener('input', onOptInput);
+  wireAngleControls($('#optbar')); wireAngleControls($('#panelBody'));
+  $('#btnDlMore').onclick = () => openDownloadSheet();
   $('#optbar').addEventListener('change', onOptInput);
   const pages = $('#pages');
   pages.addEventListener('pointerdown', onPointerDown);
