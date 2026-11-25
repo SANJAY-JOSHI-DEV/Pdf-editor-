@@ -12,6 +12,7 @@ Everything runs in your browser. No server, no upload, no login.
 - **Extract pictures:** Convert → Extract pictures saves every diagram/picture of the PDF as PNGs in a ZIP.
 - **Edit text:** tap a line, type the new text — the original is deleted from the file.
 - **Continue where you left off:** your open file and all edits are kept in the browser's own storage on this device (no server) and reopen automatically next time. More → Close file forgets it; Settings can turn it off.
+- **Glass design:** frosted-glass bars and sheets over a soft aurora backdrop, floating bottom dock on phones, gradient accents, glass notifications (icon, progress bar, dismiss), bottom-sheet dialogs on phones, light and dark themes. Falls back to solid colours on browsers without blur support or with "reduce transparency" on; animations stop with "reduce motion".
 - **Easy layout:** 5 big bottom tabs (Edit · Watermark · Convert · Pages · More), floating page/zoom buttons on phones, one-tap **Light/Dark** switch (follows your phone by default).
 - **Convert:** PDF → Text (copy all, keeps symbols like α ≥ μm² → H₂O), PDF → Word (.docx), **OCR** for scans and broken Hindi (fixes only the broken lines), PDF → JPG, Text → PDF (Hindi with a Devanagari font), Photos → PDF, Compress, Merge.
 - Drawing, highlight, shapes, eraser, images, signature, forms, find & highlight, page numbers, pages (rotate, delete, reorder, extract, split), undo/redo, metadata removal.
